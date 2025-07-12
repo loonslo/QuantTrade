@@ -1,0 +1,17 @@
+# 币安API配置
+# 请复制此文件为 .env 并填入你的真实API密钥
+
+# 主网API密钥（生产环境使用）
+BINANCE_API_KEY=your_api_key_here
+BINANCE_SECRET=your_secret_here
+
+# 测试网API密钥（测试环境使用）
+# BINANCE_TEST_API_KEY=your_test_api_key_here
+# BINANCE_TEST_SECRET=your_test_secret_here
+
+# 代理配置（可选）
+# HTTP_PROXY=http://127.0.0.1:7890
+# HTTPS_PROXY=http://127.0.0.1:7890
+
+# 其他配置
+ENVIRONMENT=development  # development, test, production 
