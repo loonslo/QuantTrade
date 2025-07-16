@@ -1,9 +1,5 @@
 import ccxt
 import pandas as pd
-import asyncio
-import websockets
-import json
-from typing import List
 from config import Config
 
 class DataLoader:
@@ -15,46 +11,32 @@ class DataLoader:
         """
         if exchange is None:
             config = Config(env=env)
-            self.exchange = ccxt.binance(config.get_binance_config())
+            self.exchange = ccxt.binance(config.get_public_config())
         else:
             self.exchange = exchange
-        self.ws_url = 'wss://ws-api.binance.com:443/ws-api/v3'
-
-    async def fetch_ohlcv_ws(self, symbol: str, interval: str = '1h', limit: int = 500) -> List[list]:
-        """
-        通过币安WebSocket API获取K线数据
-        """
-        # 币安WebSocket symbol格式如BTCUSDT
-        symbol_ws = symbol.replace('/', '').upper()
-        req = {
-            "id": 1,
-            "method": "klines",
-            "params": {
-                "symbol": symbol_ws,
-                "interval": interval,
-                "limit": limit
-            }
-        }
-        async with websockets.connect(self.ws_url) as ws:
-            await ws.send(json.dumps(req))
-            resp = await ws.recv()
-            data = json.loads(resp)
-            if 'result' in data:
-                return data['result']
-            else:
-                raise Exception(f"WebSocket获取K线失败: {data}")
 
     def fetch_ohlcv(self, symbol: str, timeframe: str = '1h', limit: int = 500):
         """
-        获取币安K线数据，优先用WebSocket，失败则用ccxt REST
+        使用ccxt获取币安K线数据
+        
+        支持的时间框架：
+        1m - 1分钟
+        3m - 3分钟
+        5m - 5分钟
+        15m - 15分钟
+        30m - 30分钟
+        1h - 1小时
+        2h - 2小时
+        4h - 4小时
+        6h - 6小时
+        8h - 8小时
+        12h - 12小时
+        1d - 1天
+        3d - 3天
+        1w - 1周
+        1M - 1个月
         """
-        try:
-            return asyncio.get_event_loop().run_until_complete(
-                self.fetch_ohlcv_ws(symbol, timeframe, limit)
-            )
-        except Exception as e:
-            print(f"WebSocket获取失败，降级为REST: {e}")
-            return self.exchange.fetch_ohlcv(symbol, timeframe, limit=limit)
+        return self.exchange.fetch_ohlcv(symbol, timeframe, limit=limit)
 
     def to_dataframe(self, ohlcv):
         """
