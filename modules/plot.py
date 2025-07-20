@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 from typing import Optional, Dict, Any
 import numpy as np
+import matplotlib.ticker as ticker  # 新增
 
 class Plotter:
     def __init__(self):
@@ -36,6 +37,9 @@ class Plotter:
         
         # 调整布局
         plt.tight_layout()
+        # 限制x轴主刻度数量
+        ax1.xaxis.set_major_locator(ticker.MaxNLocator(nbins=20))
+        ax2.xaxis.set_major_locator(ticker.MaxNLocator(nbins=20))
         
         # 保存图片
         import os
@@ -97,8 +101,9 @@ class Plotter:
             ax.legend()
         
         # 设置x轴格式
-        ax.xaxis.set_major_formatter(mdates.DateFormatter('%m-%d %H:%M'))
+        ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))
         ax.xaxis.set_major_locator(mdates.HourLocator(interval=1))
+        ax.xaxis.set_major_locator(ticker.MaxNLocator(nbins=20))  # 限制主刻度
         plt.setp(ax.xaxis.get_majorticklabels(), rotation=45)
     
     def _plot_volume(self, ax, df: pd.DataFrame):
@@ -111,8 +116,9 @@ class Plotter:
         ax.set_ylabel('成交量')
         
         # 设置x轴格式
-        ax.xaxis.set_major_formatter(mdates.DateFormatter('%m-%d %H:%M'))
+        ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))
         ax.xaxis.set_major_locator(mdates.HourLocator(interval=1))
+        ax.xaxis.set_major_locator(ticker.MaxNLocator(nbins=20))  # 限制主刻度
         plt.setp(ax.xaxis.get_majorticklabels(), rotation=45)
     
     def plot_equity_curve(self, equity_curve: pd.DataFrame, title: str = "权益曲线"):
@@ -150,8 +156,8 @@ class Plotter:
         
         # 设置x轴格式
         for ax in [ax1, ax2]:
-            ax.xaxis.set_major_formatter(mdates.DateFormatter('%m-%d %H:%M'))
-            ax.xaxis.set_major_locator(mdates.HourLocator(interval=1))
+            ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))
+            ax.xaxis.set_major_locator(ticker.MaxNLocator(nbins=20))  # 限制主刻度
             plt.setp(ax.xaxis.get_majorticklabels(), rotation=45)
         
         plt.tight_layout()

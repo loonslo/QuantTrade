@@ -3,44 +3,41 @@ import numpy as np
 from typing import Dict, List, Tuple, Optional, Callable
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
+from modules.position_manager import PositionManager, PyramidAllPositionManager
+
 
 class Backtester:
-    def __init__(self, strategy_func: Callable):
+    def __init__(self, strategy_func: Callable, position_manager: PositionManager = None):
         """
         初始化回测器
         :param strategy_func: 策略函数
+        :param position_manager: 仓位管理器
         """
         self.strategy_func = strategy_func
+        self.position_manager = position_manager or PyramidAllPositionManager()
         self.results = {}
         self.trades = []
         self.positions = []
         
     def run(self, df: pd.DataFrame, initial_capital: float = 10000, commission: float = 0.001):
-        """
-        执行回测
-        :param df: 市场数据
-        :param initial_capital: 初始资金
-        :param commission: 手续费率
-        """
         print("📊 开始回测...")
-        
-        # 生成交易信号
         signals = self.strategy_func(df)
-        
-        # 初始化变量
         capital = initial_capital
-        position = 0  # 持仓数量
+        position = 0
         entry_price = 0
         trades = []
         equity_curve = []
         
-        # 遍历每个时间点
+        min_qty = 0.001  # 虚拟币最小交易单位，可根据实际调整
+        last_signal = 0  # 记录上一个信号，避免重复
         for i in range(1, len(df)):
             current_price = df['close'].iloc[i]
             current_signal = signals.iloc[i]
-            # 调试输出
-            # print(f"{df.index[i]} 信号: {current_signal}, 持仓: {position}, 资金: {capital}")
             
+            # 信号去重：避免连续相同的信号
+            if current_signal == last_signal:
+                current_signal = 0
+            last_signal = current_signal
             # 记录权益
             current_equity = capital + position * current_price
             equity_curve.append({
@@ -50,19 +47,14 @@ class Backtester:
                 'position': position,
                 'signal': current_signal
             })
-            
-            # 交易逻辑
-            if current_signal == 1 and position == 0:
-                print(f"  >>> 触发买入条件: 信号={current_signal}, 持仓={position}, 资金={capital}")
-                # 全仓买入
-                shares = capital / (current_price * (1 + commission))
-                cost = shares * current_price * (1 + commission)
-                print(f"  >>> 买入尝试: shares={shares}, cost={cost}, capital={capital}")
-                if cost <= capital:
-                    position = shares
+            # 买入逻辑（用position_manager）
+            if current_signal == 1 and capital > 0:
+                shares, cost = self.position_manager.on_buy_signal(capital, position, current_price, commission)
+                if shares >= min_qty and cost <= capital:
+                    position += shares
                     capital -= cost
                     entry_price = current_price
-                    print(f"  >>> 买入成功: 新持仓={position}, 剩余资金={capital}")
+                    print(f"  >>> 买入成功: 数量={shares}, 价格={current_price}, 花费={cost}, 剩余资金={capital}")
                     trades.append({
                         'timestamp': df.index[i],
                         'action': 'BUY',
@@ -71,28 +63,31 @@ class Backtester:
                         'cost': cost,
                         'capital': capital
                     })
-                    print(f"  >>> 买入成功: 新持仓={position}, 剩余资金={capital}")
                 else:
-                    print(f"  >>> 买入失败: 资金不足")
-            elif current_signal == -1 and position > 0:  # 卖出信号且当前有持仓
-                # 全仓卖出
-                revenue = position * current_price * (1 - commission)
-                capital += revenue
-                profit = revenue - (position * entry_price)
-                trades.append({
-                    'timestamp': df.index[i],
-                    'action': 'SELL',
-                    'price': current_price,
-                    'shares': position,
-                    'revenue': revenue,
-                    'profit': profit,
-                    'capital': capital
-                })
-                print(f"  >>> 卖出: {position} @ {current_price}, 盈亏: {profit}, 剩余资金: {capital}")
-                position = 0
-                entry_price = 0
-        
-        # 保存结果
+                    print(f"  >>> 买入失败: 资金不足或低于最小交易单位({min_qty})")
+                self.position_manager.reset() if current_signal == -1 else None
+            # 卖出逻辑（用position_manager）
+            elif current_signal == -1 and position > 0:
+                sell_shares, revenue = self.position_manager.on_sell_signal(capital, position, current_price, commission)
+                if sell_shares >= min_qty and sell_shares <= position:
+                    capital += revenue
+                    profit = revenue - (sell_shares * entry_price)
+                    print(f"  >>> 卖出成功: 数量={sell_shares}, 价格={current_price}, 收入={revenue}, 盈亏={profit}, 剩余资金={capital}")
+                    trades.append({
+                        'timestamp': df.index[i],
+                        'action': 'SELL',
+                        'price': current_price,
+                        'shares': sell_shares,
+                        'revenue': revenue,
+                        'profit': profit,
+                        'capital': capital
+                    })
+                    position -= sell_shares
+                    if position < 1e-8:
+                        position = 0
+                else:
+                    print(f"  >>> 卖出失败: 持仓不足或低于最小交易单位({min_qty})")
+                self.position_manager.reset() if current_signal == 1 else None
         self.results = {
             'initial_capital': initial_capital,
             'final_capital': capital + position * df['close'].iloc[-1],
@@ -101,7 +96,6 @@ class Backtester:
             'equity_curve': equity_curve,
             'signals': signals
         }
-        
         print("✅ 回测完成")
         
     def stats(self) -> Dict:
@@ -142,11 +136,12 @@ class Backtester:
         max_drawdown = equity_curve['drawdown'].min()
         
         # 交易统计
-        buy_trades = [t for t in trades if t['action'] == 'BUY']
-        sell_trades = [t for t in trades if t['action'] == 'SELL']
+        # 统计所有买入和卖出相关的交易
+        buy_trades = [t for t in trades if 'BUY' in t['action']]
+        sell_trades = [t for t in trades if 'SELL' in t['action']]
         
-        win_trades = [t for t in sell_trades if t['profit'] > 0]
-        loss_trades = [t for t in sell_trades if t['profit'] <= 0]
+        win_trades = [t for t in sell_trades if t.get('profit', 0) > 0]
+        loss_trades = [t for t in sell_trades if t.get('profit', 0) <= 0]
         
         win_rate = len(win_trades) / len(sell_trades) if sell_trades else 0
         avg_win = np.mean([t['profit'] for t in win_trades]) if win_trades else 0
@@ -162,7 +157,7 @@ class Backtester:
             'annual_return': annual_return,
             'sharpe_ratio': sharpe_ratio,
             'max_drawdown': max_drawdown,
-            'total_trades': len(sell_trades),
+            'total_trades': len(sell_trades) + len(buy_trades),
             'win_rate': win_rate,
             'avg_win': avg_win,
             'avg_loss': avg_loss,
