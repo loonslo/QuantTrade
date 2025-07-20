@@ -30,7 +30,7 @@ if __name__ == '__main__':
 
 
     # 2. 策略信号
-    strategy_func = Strategy.kdj_signal # 只需改这里即可切换策略
+    strategy_func = Strategy.rsi_signal # 只需改这里即可切换策略
     print("📈 生成交易信号...")
     # 为动量策略设置更合理的参数
     if strategy_func.__name__ == 'momentum':
@@ -93,7 +93,10 @@ if __name__ == '__main__':
         '平均盈利': stats['avg_win'],
         '平均亏损': stats['avg_loss'],
         '盈亏比': stats['profit_factor'],
-        '回测天数': stats['total_days']
+        '回测天数': stats['total_days'],
+        '总手续费': stats['total_commission'],
+        '手续费率': stats['commission_rate'],
+        '净收益率': stats['total_return'] - stats['commission_rate']
     }
     if os.path.exists(excel_path):
         df_excel = pd.read_excel(excel_path)
