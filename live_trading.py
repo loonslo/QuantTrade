@@ -300,11 +300,34 @@ def main():
     test_mode = True  # 设置为False进行实盘交易
     check_interval = 60  # 检查间隔（秒）
     
+    # 实盘模式配置
+    api_key = None
+    api_secret = None
+    
+    if not test_mode:
+        print("⚠️  实盘模式警告：")
+        print("   - 将使用真实资金进行交易")
+        print("   - 请确保API密钥配置正确")
+        print("   - 建议先用小资金测试")
+        print()
+        
+        # 从环境变量或配置文件获取API密钥
+        import os
+        api_key = os.getenv('BINANCE_API_KEY')
+        api_secret = os.getenv('BINANCE_SECRET')
+        
+        if not api_key or not api_secret:
+            print("❌ 实盘模式需要配置API密钥")
+            print("请在环境变量中设置 BINANCE_API_KEY 和 BINANCE_SECRET")
+            return
+    
     print(f"交易对: {symbol}")
     print(f"策略: {strategy_func.__name__}")
     print(f"初始资金: ${initial_capital}")
     print(f"模式: {'测试模式' if test_mode else '实盘模式'}")
     print(f"检查间隔: {check_interval}秒")
+    if not test_mode:
+        print(f"API密钥: {'已配置' if api_key else '未配置'}")
     print("="*50)
     
     # 创建实时交易器
