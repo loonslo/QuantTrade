@@ -23,11 +23,12 @@ class LiveTrader:
     """实时交易执行器"""
     
     def __init__(self, symbol: str = 'BTC/USDT', strategy_func=None, 
-                 initial_capital: float = 10000, test_mode: bool = True):
+                 initial_capital: float = 10000, test_mode: bool = True, timeframe: str = '1m'):
         self.symbol = symbol
         self.strategy_func = strategy_func
         self.initial_capital = initial_capital
         self.test_mode = test_mode
+        self.timeframe = timeframe
         
         # 初始化组件
         self.data_loader = DataLoader()
@@ -40,7 +41,7 @@ class LiveTrader:
         self.is_running = False
         self.trade_history = []
         
-        logger.info(f"实时交易器初始化完成 - 交易对: {symbol}, 测试模式: {test_mode}")
+        logger.info(f"实时交易器初始化完成 - 交易对: {symbol}, 测试模式: {test_mode}, K线周期: {timeframe}")
     
     def start(self, interval_seconds: int = 60):
         """开始实时交易"""
@@ -68,7 +69,7 @@ class LiveTrader:
         """检查并执行交易信号"""
         try:
             # 获取最新数据
-            ohlcv = self.data_loader.fetch_ohlcv(self.symbol, '1h', 100)
+            ohlcv = self.data_loader.fetch_ohlcv(self.symbol, self.timeframe, 100)
             df = self.data_loader.to_dataframe(ohlcv)
             
             if df.empty:
@@ -76,7 +77,7 @@ class LiveTrader:
                 return
             
             # 保存市场数据到数据库
-            self.db_manager.save_market_data(df, self.symbol, '1h')
+            self.db_manager.save_market_data(df, self.symbol, self.timeframe)
             
             # 生成交易信号
             signals = self.strategy_func(df)
@@ -298,7 +299,8 @@ def main():
     strategy_func = Strategy.mean_reversion  # 可以切换策略
     initial_capital = 10000
     test_mode = True  # 设置为False进行实盘交易
-    check_interval = 60  # 检查间隔（秒）
+    timeframe = '1m'  # 支持自定义K线周期，如'1m', '5m', '15m', '1h', '4h', '1d'
+    check_interval = 60  # 检查间隔（秒），建议与K线周期匹配
     
     # 实盘模式配置
     api_key = None
@@ -325,6 +327,7 @@ def main():
     print(f"策略: {strategy_func.__name__}")
     print(f"初始资金: ${initial_capital}")
     print(f"模式: {'测试模式' if test_mode else '实盘模式'}")
+    print(f"K线周期: {timeframe}")
     print(f"检查间隔: {check_interval}秒")
     if not test_mode:
         print(f"API密钥: {'已配置' if api_key else '未配置'}")
@@ -335,7 +338,8 @@ def main():
         symbol=symbol,
         strategy_func=strategy_func,
         initial_capital=initial_capital,
-        test_mode=test_mode
+        test_mode=test_mode,
+        timeframe=timeframe
     )
     
     # 显示初始账户状态

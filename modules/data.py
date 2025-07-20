@@ -40,12 +40,16 @@ class DataLoader:
 
     def to_dataframe(self, ohlcv):
         """
-        将K线数据转换为pandas DataFrame
+        将K线数据转换为pandas DataFrame，并统一为东八区（北京时间）
         """
         df = pd.DataFrame(ohlcv, columns=[
             'timestamp', 'open', 'high', 'low', 'close', 'volume'
         ])
         df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
         df.set_index('timestamp', inplace=True)
+        # 统一index为东八区
+        if df.index.tz is None or df.index.tz is pd.NaT:
+            df.index = df.index.tz_localize('UTC')
+        df.index = df.index.tz_convert('Asia/Shanghai')
         df = df.astype(float)
         return df 

@@ -9,7 +9,7 @@ def test_strategy_commission():
     
     # 数据获取
     data_loader = DataLoader()
-    ohlcv = data_loader.fetch_ohlcv('ETH/USDT', '15m', 1000)
+    ohlcv = data_loader.fetch_ohlcv('ETH/USDT', '3m', 1000)
     df = data_loader.to_dataframe(ohlcv)
     
     # 策略列表

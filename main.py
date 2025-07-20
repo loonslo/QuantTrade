@@ -16,8 +16,8 @@ from modules.plot import Plotter
 from modules.database import DatabaseManager
 
 # 配置参数
-SYMBOL = 'BTC/USDT'
-TIMEFRAME = '1h'
+SYMBOL = 'ETH/USDT'
+TIMEFRAME = '3m'
 LIMIT = 1000
 
 
@@ -127,11 +127,18 @@ if __name__ == '__main__':
         backtest_id = len(df_excel) + 1
     else:
         backtest_id = 1
+
+    # 处理result_row中的时间，去除时区
+    def remove_tz(dt):
+        if hasattr(dt, 'tzinfo') and dt.tzinfo is not None:
+            return dt.tz_convert('Asia/Shanghai').tz_localize(None)
+        return dt
+
     result_row = {
         '回溯次数': backtest_id,
         '策略': strategy_name,
-        '起始时间': start_time,
-        '结束时间': end_time,
+        '起始时间': remove_tz(start_time),
+        '结束时间': remove_tz(end_time),
         '初始资金': stats['initial_capital'],
         '最终资金': stats['final_capital'],
         '总收益率': stats['total_return'],
@@ -153,6 +160,12 @@ if __name__ == '__main__':
         df_excel = pd.concat([df_excel, pd.DataFrame([result_row])], ignore_index=True)
     else:
         df_excel = pd.DataFrame([result_row])
+    # 写入Excel前彻底去除所有带时区的datetime
+    for col in df_excel.columns:
+        if pd.api.types.is_datetime64_any_dtype(df_excel[col]):
+            df_excel[col] = pd.to_datetime(df_excel[col]).dt.tz_localize(None)
+    if hasattr(df_excel.index, 'tz') and df_excel.index.tz is not None:
+        df_excel.index = df_excel.index.tz_localize(None)
     df_excel.to_excel(excel_path, index=False)
 
     # 4. 信号输出

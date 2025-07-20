@@ -113,7 +113,7 @@ class Strategy:
         return signals 
 
     @staticmethod
-    def mean_reversion(df: pd.DataFrame, window=20, threshold=1.5):
+    def mean_reversion(df: pd.DataFrame, window=100, threshold=1.5):
         """
         均值回归策略：价格偏离均值一定倍数时反向操作
         """
