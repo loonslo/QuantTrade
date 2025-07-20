@@ -6,6 +6,7 @@ numpy>=1.21.0
 # 数据可视化
 matplotlib>=3.5.0
 mplfinance>=0.12.0
+seaborn>=0.11.0
 
 # 技术指标计算
 pandas-ta>=0.3.0
@@ -31,3 +32,7 @@ urllib3>=1.26.0
 pytest>=6.0.0
 black>=22.0.0
 flake8>=4.0.0 
+
+# 数据库和数据分析
+openpyxl>=3.0.0
+sqlite3 

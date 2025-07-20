@@ -28,7 +28,7 @@ class Backtester:
         trades = []
         equity_curve = []
         
-        min_qty = 0.001  # 虚拟币最小交易单位，可根据实际调整
+        min_qty = 0.0001  # 虚拟币最小交易单位，可根据实际调整
         last_signal = 0  # 记录上一个信号，避免重复
         for i in range(1, len(df)):
             current_price = df['close'].iloc[i]

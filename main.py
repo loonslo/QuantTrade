@@ -13,24 +13,30 @@ from modules.strategy import Strategy
 from modules.backtest import Backtester
 from modules.signal import SignalSender
 from modules.plot import Plotter
+from modules.database import DatabaseManager
 
-# 参数配置
-SYMBOL = 'ETH/USDT'  # 可选 'BTC/USDT' 或 'ETH/USDT'
-TIMEFRAME = '15m'
+# 配置参数
+SYMBOL = 'BTC/USDT'
+TIMEFRAME = '1h'
 LIMIT = 1000
 
 
 
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
+    # 初始化数据库管理器
+    db_manager = DatabaseManager()
+    
     # 1. 数据获取
     data_loader = DataLoader()
     ohlcv = data_loader.fetch_ohlcv(SYMBOL, TIMEFRAME, LIMIT)
     df = data_loader.to_dataframe(ohlcv)
-
+    
+    # 保存市场数据到数据库
+    db_manager.save_market_data(df, SYMBOL, TIMEFRAME)
 
     # 2. 策略信号
-    strategy_func = Strategy.rsi_signal # 只需改这里即可切换策略
+    strategy_func = Strategy.mean_reversion # 只需改这里即可切换策略
     print("📈 生成交易信号...")
     # 为动量策略设置更合理的参数
     if strategy_func.__name__ == 'momentum':
@@ -38,6 +44,14 @@ if __name__ == '__main__':
     else:
         signals = strategy_func(df)
     print(f"✅ 生成 {len(signals[signals != 0])} 个交易信号")
+    
+    # 保存交易信号到数据库
+    strategy_name = strategy_func.__name__
+    for timestamp, signal in signals[signals != 0].items():
+        if timestamp in df.index:
+            price = df.loc[timestamp, 'close']
+            db_manager.save_trading_signal(SYMBOL, timestamp, signal, strategy_name, price)
+    
     # 打印所有非零信号的时间、类型和价格
     print("\n所有交易信号：")
     for ts, sig in signals[signals != 0].items():
@@ -47,7 +61,6 @@ if __name__ == '__main__':
 
     # 预测下一个信号价格
     print("\n🔮 预测下一个信号价格...")
-    strategy_name = strategy_func.__name__
     predictions = Strategy.predict_next_signals(df, strategy_name)
     if predictions.get('next_buy'):
         print(f"下一个买入信号触发价格: ${predictions['next_buy']:.2f}")
@@ -57,6 +70,15 @@ if __name__ == '__main__':
         print("当前无预测信号")
     if predictions.get('message'):
         print(f"预测信息: {predictions['message']}")
+    
+    # 保存策略预测到数据库
+    current_price = df['close'].iloc[-1]
+    current_time = df.index[-1]
+    db_manager.save_strategy_prediction(
+        strategy_name, SYMBOL, current_time,
+        predictions.get('next_buy'), predictions.get('next_sell'),
+        current_price, predictions.get('message')
+    )
 
     # 3. 回测
     print("📊 执行回测...")
@@ -71,6 +93,34 @@ if __name__ == '__main__':
     strategy_name = strategy_func.__name__ if hasattr(strategy_func, '__name__') else str(strategy_func)
     start_time = df.index[0] if len(df) > 0 else ''
     end_time = df.index[-1] if len(df) > 0 else ''
+    
+    # 保存回测结果到数据库
+    backtest_result = {
+        'strategy_name': strategy_name,
+        'symbol': SYMBOL,
+        'start_time': start_time,
+        'end_time': end_time,
+        'initial_capital': stats['initial_capital'],
+        'final_capital': stats['final_capital'],
+        'total_return': stats['total_return'],
+        'annual_return': stats['annual_return'],
+        'sharpe_ratio': stats['sharpe_ratio'],
+        'max_drawdown': stats['max_drawdown'],
+        'total_trades': stats['total_trades'],
+        'win_rate': stats['win_rate'],
+        'avg_win': stats['avg_win'],
+        'avg_loss': stats['avg_loss'],
+        'profit_factor': stats['profit_factor'],
+        'total_days': stats['total_days'],
+        'total_commission': stats['total_commission'],
+        'commission_rate': stats['commission_rate'],
+        'net_return': stats['total_return'] - stats['commission_rate'],
+        'position_manager': 'FixedRatioPositionManager',
+        'parameters': {}
+    }
+    db_manager.save_backtest_result(backtest_result)
+    
+    # Excel导出（保持原有功能）
     excel_path = 'backtest_results.xlsx'
     if os.path.exists(excel_path):
         df_excel = pd.read_excel(excel_path)
@@ -123,4 +173,17 @@ if __name__ == '__main__':
     trades = backtester.get_trades()
     if trades:
         plotter.plot_trade_analysis(trades)
+    
+    # 6. 显示数据库统计
+    print("\n📊 数据库统计信息:")
+    db_stats = db_manager.get_database_stats()
+    for key, value in db_stats.items():
+        if key.endswith('_count'):
+            table_name = key.replace('_count', '').replace('_', ' ')
+            print(f"  {table_name}: {value} 条记录")
+    
+    if 'data_start' in db_stats and 'data_end' in db_stats:
+        print(f"  数据时间范围: {db_stats['data_start']} 到 {db_stats['data_end']}")
+    
+    print("\n✅ 所有数据已保存到数据库 quanttrade.db")
 
