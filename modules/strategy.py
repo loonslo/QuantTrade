@@ -39,7 +39,18 @@ class Strategy:
     @staticmethod
     def ma_cross(df: pd.DataFrame, short_window=5, long_window=20):
         """
-        简单均线交叉策略，只在交叉点给信号
+        【策略说明】
+        简单均线交叉策略：短期均线上穿长期均线（金叉）买入，下穿（死叉）卖出。
+        适用于趋势行情。
+        
+        【参数说明】
+        :param df: 必须包含'close'列的K线数据（DataFrame）
+        :param short_window: 短期均线窗口，默认5
+        :param long_window: 长期均线窗口，默认20
+        
+        【用法示例】
+        signals = Strategy.ma_cross(df, short_window=5, long_window=20)
+        # signals为Series，1=买入，-1=卖出，0=无信号
         """
         # 计算移动平均线
         df['sma_short'] = df['close'].rolling(window=short_window).mean()
@@ -55,7 +66,18 @@ class Strategy:
     @staticmethod
     def rsi_signal(df: pd.DataFrame, period=14, overbought=70, oversold=30):
         """
-        RSI超买超卖策略
+        【策略说明】
+        RSI超买超卖策略：RSI低于oversold买入，高于overbought卖出。
+        适用于震荡行情。
+        
+        【参数说明】
+        :param df: 必须包含'close'列的K线数据
+        :param period: RSI周期，默认14
+        :param overbought: 超买阈值，默认70
+        :param oversold: 超卖阈值，默认30
+        
+        【用法示例】
+        signals = Strategy.rsi_signal(df, period=14, overbought=70, oversold=30)
         """
         # 计算RSI
         delta = df['close'].diff()
@@ -74,7 +96,17 @@ class Strategy:
     @staticmethod
     def bollinger_breakout(df: pd.DataFrame, window=20, num_std=2):
         """
-        布林带突破策略：价格上穿上轨买入，下穿下轨卖出
+        【策略说明】
+        布林带突破策略：价格上穿上轨买入，下穿下轨卖出。
+        适用于震荡突破行情。
+        
+        【参数说明】
+        :param df: 必须包含'close'列的K线数据
+        :param window: 均线窗口，默认20
+        :param num_std: 标准差倍数，默认2
+        
+        【用法示例】
+        signals = Strategy.bollinger_breakout(df, window=20, num_std=2)
         """
         df['ma'] = df['close'].rolling(window=window).mean()
         df['std'] = df['close'].rolling(window=window).std()
@@ -88,7 +120,18 @@ class Strategy:
     @staticmethod
     def macd_cross(df: pd.DataFrame, fast=12, slow=26, signal=9):
         """
-        MACD金叉死叉策略
+        【策略说明】
+        MACD金叉死叉策略：MACD线上穿信号线（金叉）买入，下穿（死叉）卖出。
+        适用于趋势行情。
+        
+        【参数说明】
+        :param df: 必须包含'close'列的K线数据
+        :param fast: 快线EMA周期，默认12
+        :param slow: 慢线EMA周期，默认26
+        :param signal: 信号线EMA周期，默认9
+        
+        【用法示例】
+        signals = Strategy.macd_cross(df, fast=12, slow=26, signal=9)
         """
         df['ema_fast'] = df['close'].ewm(span=fast, adjust=False).mean()
         df['ema_slow'] = df['close'].ewm(span=slow, adjust=False).mean()
@@ -102,9 +145,19 @@ class Strategy:
         return signals
 
     @staticmethod
-    def momentum(df: pd.DataFrame, window=10, threshold=0):
+    def momentum(df: pd.DataFrame, window=10, threshold=0.025):
         """
-        动量策略：收益率大于阈值买入，小于-阈值卖出
+        【策略说明】
+        动量策略：收益率大于阈值买入，小于-阈值卖出。
+        适用于强趋势行情。
+        
+        【参数说明】
+        :param df: 必须包含'close'列的K线数据
+        :param window: 动量计算周期，默认10
+        :param threshold: 动量阈值，默认0
+        
+        【用法示例】
+        signals = Strategy.momentum(df, window=10, threshold=0)
         """
         df['momentum'] = df['close'].pct_change(periods=window)
         signals = pd.Series(0, index=df.index)
@@ -115,7 +168,17 @@ class Strategy:
     @staticmethod
     def mean_reversion(df: pd.DataFrame, window=100, threshold=1.5):
         """
-        均值回归策略：价格偏离均值一定倍数时反向操作
+        【策略说明】
+        均值回归策略：价格偏离均值一定倍数时反向操作。
+        适用于震荡回归行情。
+        
+        【参数说明】
+        :param df: 必须包含'close'列的K线数据
+        :param window: 均线窗口，默认100
+        :param threshold: 偏离倍数阈值，默认1.5
+        
+        【用法示例】
+        signals = Strategy.mean_reversion(df, window=100, threshold=1.5)
         """
         df['ma'] = df['close'].rolling(window=window).mean()
         df['std'] = df['close'].rolling(window=window).std()
@@ -128,7 +191,16 @@ class Strategy:
     @staticmethod
     def breakout(df: pd.DataFrame, window=20):
         """
-        突破策略：价格突破N日高点买入，跌破N日低点卖出
+        【策略说明】
+        突破策略：价格突破N日高点买入，跌破N日低点卖出。
+        适用于趋势行情。
+        
+        【参数说明】
+        :param df: 必须包含'close'、'high'、'low'列的K线数据
+        :param window: 突破窗口，默认20
+        
+        【用法示例】
+        signals = Strategy.breakout(df, window=20)
         """
         df['high_max'] = df['high'].rolling(window=window).max()
         df['low_min'] = df['low'].rolling(window=window).min()
@@ -140,7 +212,17 @@ class Strategy:
     @staticmethod
     def turtle(df: pd.DataFrame, entry_window=18, exit_window=12):
         """
-        海龟交易法则：突破N日高点买入，跌破M日低点卖出
+        【策略说明】
+        海龟交易法则：突破N日高点买入，跌破M日低点卖出。
+        适用于趋势行情。
+        
+        【参数说明】
+        :param df: 必须包含'close'、'high'、'low'列的K线数据
+        :param entry_window: 入场高点窗口，默认18
+        :param exit_window: 止损低点窗口，默认12
+        
+        【用法示例】
+        signals = Strategy.turtle(df, entry_window=18, exit_window=12)
         """
         df['entry_high'] = df['high'].rolling(window=entry_window).max()
         df['exit_low'] = df['low'].rolling(window=exit_window).min()
@@ -152,7 +234,18 @@ class Strategy:
     @staticmethod
     def kdj_signal(df: pd.DataFrame, n=9, k_period=3, d_period=3):
         """
-        KDJ策略：K线上穿D线买入，下穿D线卖出
+        【策略说明】
+        KDJ策略：K线上穿D线买入，下穿D线卖出。
+        适用于震荡行情。
+        
+        【参数说明】
+        :param df: 必须包含'close'、'high'、'low'列的K线数据
+        :param n: RSV计算周期，默认9
+        :param k_period: K值平滑周期，默认3
+        :param d_period: D值平滑周期，默认3
+        
+        【用法示例】
+        signals = Strategy.kdj_signal(df, n=9, k_period=3, d_period=3)
         """
         low_min = df['low'].rolling(window=n).min()
         high_max = df['high'].rolling(window=n).max()
@@ -168,9 +261,20 @@ class Strategy:
         return signals 
 
     @staticmethod
-    def kama_cross(df: pd.DataFrame, fast=2, slow=30, window=10):
+    def kama_cross(df: pd.DataFrame, fast=2, slow=30, window=50):
         """
-        KAMA自适应均线交叉策略
+        【策略说明】
+        KAMA自适应均线交叉策略：KAMA上穿MA买入，下穿MA卖出。
+        适用于趋势行情。
+        
+        【参数说明】
+        :param df: 必须包含'close'列的K线数据
+        :param fast: KAMA快速参数，默认2
+        :param slow: KAMA慢速参数，默认30
+        :param window: 均线窗口，默认50
+        
+        【用法示例】
+        signals = Strategy.kama_cross(df, fast=2, slow=30, window=50)
         """
         change = abs(df['close'] - df['close'].shift(window))
         volatility = df['close'].diff().abs().rolling(window=window).sum()
@@ -182,8 +286,9 @@ class Strategy:
         df['kama'] = kama
         df['ma'] = df['close'].rolling(window=window).mean()
         signals = pd.Series(0, index=df.index)
-        signals[(df['kama'].shift(1) <= df['ma'].shift(1)) & (df['kama'] > df['ma'])] = 1
-        signals[(df['kama'].shift(1) >= df['ma'].shift(1)) & (df['kama'] < df['ma'])] = -1
+        tolerance = 1e-6
+        signals[(df['kama'].shift(1) <= df['ma'].shift(1) + tolerance) & (df['kama'] > df['ma'] + tolerance)] = 1
+        signals[(df['kama'].shift(1) >= df['ma'].shift(1) - tolerance) & (df['kama'] < df['ma'] - tolerance)] = -1
         return signals 
 
     @staticmethod
