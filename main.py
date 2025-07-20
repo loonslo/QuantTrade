@@ -17,7 +17,7 @@ from modules.database import DatabaseManager
 
 # 配置参数
 SYMBOL = 'ETH/USDT'
-TIMEFRAME = '3m'
+TIMEFRAME = '5m'
 LIMIT = 1000
 
 
@@ -36,7 +36,7 @@ if __name__ == '__main__':
     db_manager.save_market_data(df, SYMBOL, TIMEFRAME)
 
     # 2. 策略信号
-    strategy_func = Strategy.mean_reversion # 只需改这里即可切换策略
+    strategy_func = Strategy.ma_cross # 只需改这里即可切换策略
     print("📈 生成交易信号...")
     # 为动量策略设置更合理的参数
     if strategy_func.__name__ == 'momentum':

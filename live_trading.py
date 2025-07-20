@@ -7,6 +7,7 @@ from modules.trader import Trader, OrderSide, OrderType
 from modules.position_manager import FixedRatioPositionManager
 from modules.database import DatabaseManager
 import logging
+from modules.binance_account import BinanceAccount  # 新增
 
 # 设置日志
 logging.basicConfig(
@@ -23,16 +24,24 @@ class LiveTrader:
     """实时交易执行器"""
     
     def __init__(self, symbol: str = 'BTC/USDT', strategy_func=None, 
-                 initial_capital: float = 10000, test_mode: bool = True, timeframe: str = '1m'):
+                 initial_capital: float = 10000, test_mode: bool = True, timeframe: str = '1m',
+                 api_key: str = None, api_secret: str = None):  # 新增api_key, api_secret
         self.symbol = symbol
         self.strategy_func = strategy_func
         self.initial_capital = initial_capital
         self.test_mode = test_mode
         self.timeframe = timeframe
+        self.api_key = api_key
+        self.api_secret = api_secret
         
         # 初始化组件
         self.data_loader = DataLoader()
-        self.trader = Trader(test_mode=test_mode)
+        if self.test_mode:
+            self.trader = Trader(test_mode=True)
+            self.account = None
+        else:
+            self.trader = None  # 不再用Trader
+            self.account = BinanceAccount(api_key, api_secret)
         self.position_manager = FixedRatioPositionManager()
         self.db_manager = DatabaseManager()
         
@@ -142,27 +151,28 @@ class LiveTrader:
     def _execute_buy_signal(self, price: float, timestamp):
         """执行买入信号"""
         try:
-            # 获取可用资金
-            available_capital = self.trader.get_balance('USDT')
-            
+            if self.test_mode:
+                # 获取可用资金
+                available_capital = self.trader.get_balance('USDT')
+            else:
+                available_capital = self.account.get_balance('USDT')
             # 计算购买数量
             shares, cost = self.position_manager.on_buy_signal(
                 available_capital, 0, price, 0.001
             )
-            
             if shares > 0 and cost <= available_capital:
-                # 下市价单
-                order = self.trader.place_market_order(
-                    self.symbol, OrderSide.BUY, shares
-                )
-                
+                if self.test_mode:
+                    order = self.trader.place_market_order(
+                        self.symbol, OrderSide.BUY, shares
+                    )
+                else:
+                    order = self.account.buy(self.symbol, shares)
                 # 保存交易记录到数据库
                 self.db_manager.save_trade_record(
-                    order.id, self.symbol, 'buy', 'market',
-                    shares, price, cost, order.commission,
-                    order.status, timestamp, self.strategy_func.__name__
+                    getattr(order, 'id', None), self.symbol, 'buy', 'market',
+                    shares, price, cost, getattr(order, 'commission', 0),
+                    getattr(order, 'status', 'executed'), timestamp, self.strategy_func.__name__
                 )
-                
                 # 记录交易
                 trade_record = {
                     'timestamp': timestamp,
@@ -170,59 +180,51 @@ class LiveTrader:
                     'quantity': shares,
                     'price': price,
                     'cost': cost,
-                    'order_id': order.id,
-                    'status': 'executed'
+                    'order_id': getattr(order, 'id', None),
+                    'status': getattr(order, 'status', 'executed')
                 }
                 self.trade_history.append(trade_record)
-                
                 logger.info(f"买入信号执行成功: {shares} @ ${price:.2f}")
-                
             else:
                 logger.warning(f"买入失败: 资金不足或数量过小 (shares={shares}, cost={cost})")
-                
         except Exception as e:
             logger.error(f"执行买入信号失败: {e}")
     
     def _execute_sell_signal(self, price: float, timestamp):
         """执行卖出信号"""
         try:
-            # 获取当前持仓
-            position = self.trader.position_manager.get_position(self.symbol)
-            
-            if position and position.quantity > 0:
-                # 计算卖出数量（全部卖出）
-                shares = position.quantity
-                
-                # 下市价单
-                order = self.trader.place_market_order(
-                    self.symbol, OrderSide.SELL, shares
-                )
-                
-                # 保存交易记录到数据库
+            if self.test_mode:
+                position = self.trader.position_manager.get_position(self.symbol)
+                shares = position.quantity if position and position.quantity > 0 else 0
+            else:
+                # 实盘：查询币余额
+                shares = self.account.get_balance(self.symbol.split('/')[0])
+            if shares > 0:
+                if self.test_mode:
+                    order = self.trader.place_market_order(
+                        self.symbol, OrderSide.SELL, shares
+                    )
+                else:
+                    order = self.account.sell(self.symbol, shares)
                 revenue = shares * price
                 self.db_manager.save_trade_record(
-                    order.id, self.symbol, 'sell', 'market',
-                    shares, price, revenue, order.commission,
-                    order.status, timestamp, self.strategy_func.__name__
+                    getattr(order, 'id', None), self.symbol, 'sell', 'market',
+                    shares, price, revenue, getattr(order, 'commission', 0),
+                    getattr(order, 'status', 'executed'), timestamp, self.strategy_func.__name__
                 )
-                
-                # 记录交易
                 trade_record = {
                     'timestamp': timestamp,
                     'action': 'SELL',
                     'quantity': shares,
                     'price': price,
                     'revenue': revenue,
-                    'order_id': order.id,
-                    'status': 'executed'
+                    'order_id': getattr(order, 'id', None),
+                    'status': getattr(order, 'status', 'executed')
                 }
                 self.trade_history.append(trade_record)
-                
                 logger.info(f"卖出信号执行成功: {shares} @ ${price:.2f}")
-                
             else:
                 logger.warning("卖出失败: 无持仓可卖")
-                
         except Exception as e:
             logger.error(f"执行卖出信号失败: {e}")
     
@@ -230,27 +232,34 @@ class LiveTrader:
         """打印当前状态"""
         current_price = df['close'].iloc[-1]
         current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        
-        # 获取账户摘要
-        summary = self.trader.get_account_summary()
-        
         print(f"\n⏰ {current_time}")
         print(f"📊 {self.symbol} 当前价格: ${current_price:.2f}")
         print(f"📈 当前信号: {self._signal_to_text(current_signal)}")
-        print(f"💰 总资产: ${summary['total_balance']:.2f}")
-        print(f"💵 USDT余额: ${summary['usdt_balance']:.2f}")
-        print(f"📦 持仓价值: ${summary['position_value']:.2f}")
-        print(f"📊 日盈亏: ${summary['daily_pnl']:.2f}")
-        
-        # 显示持仓详情
-        if summary['positions']:
-            for symbol, position in summary['positions'].items():
-                if position.quantity > 0:
-                    current_price = self.trader.get_current_price(symbol)
-                    unrealized_pnl = (current_price - position.avg_price) * position.quantity
-                    print(f"  📦 {symbol}: {position.quantity:.6f} @ ${position.avg_price:.2f} "
-                          f"(盈亏: ${unrealized_pnl:.2f})")
-    
+        if self.test_mode:
+            # 模拟账户打印
+            summary = self.trader.get_account_summary()
+            print(f"💰 总资产: ${summary['total_balance']:.2f}")
+            print(f"💵 USDT余额: ${summary['usdt_balance']:.2f}")
+            print(f"📦 持仓价值: ${summary['position_value']:.2f}")
+            print(f"📊 日盈亏: ${summary['daily_pnl']:.2f}")
+            # 显示持仓详情
+            if summary['positions']:
+                for symbol, position in summary['positions'].items():
+                    if position.quantity > 0:
+                        current_price = self.trader.get_current_price(symbol)
+                        unrealized_pnl = (current_price - position.avg_price) * position.quantity
+                        print(f"  📦 {symbol}: {position.quantity:.6f} @ ${position.avg_price:.2f} "
+                              f"(盈亏: ${unrealized_pnl:.2f})")
+        else:
+            # 实盘账户打印
+            usdt_balance = self.account.get_balance('USDT')
+            coin = self.symbol.split('/')[0]
+            coin_balance = self.account.get_balance(coin)
+            print(f"💵 实盘USDT余额: ${usdt_balance}")
+            print(f"📦 实盘{coin}持仓: {coin_balance}")
+            # 可选：查询当前市值
+            print(f"📦 持仓市值: ${coin_balance * current_price:.2f}")
+
     def _signal_to_text(self, signal: int) -> str:
         """将信号转换为文本"""
         if signal == 1:
@@ -262,17 +271,28 @@ class LiveTrader:
     
     def _print_final_summary(self):
         """打印最终摘要"""
-        summary = self.trader.get_account_summary()
-        
         print("\n" + "="*60)
         print("🎯 交易结束 - 最终摘要")
         print("="*60)
         print(f"初始资金: ${self.initial_capital:.2f}")
-        print(f"最终资产: ${summary['total_balance']:.2f}")
-        print(f"总盈亏: ${summary['total_balance'] - self.initial_capital:.2f}")
-        print(f"总收益率: {((summary['total_balance'] / self.initial_capital) - 1) * 100:.2f}%")
+        if self.test_mode:
+            summary = self.trader.get_account_summary()
+            print(f"最终资产: ${summary['total_balance']:.2f}")
+            print(f"总盈亏: ${summary['total_balance'] - self.initial_capital:.2f}")
+            print(f"总收益率: {((summary['total_balance'] / self.initial_capital) - 1) * 100:.2f}%")
+        else:
+            usdt_balance = self.account.get_balance('USDT')
+            coin = self.symbol.split('/')[0]
+            coin_balance = self.account.get_balance(coin)
+            current_price = self.account.exchange.fetch_ticker(self.symbol)['last']
+            total_balance = usdt_balance + coin_balance * current_price
+            print(f"最终资产: ${total_balance:.2f}")
+            print(f"总盈亏: ${total_balance - self.initial_capital:.2f}")
+            print(f"总收益率: {((total_balance / self.initial_capital) - 1) * 100:.2f}%")
+            print(f"USDT余额: ${usdt_balance}")
+            print(f"{coin}持仓: {coin_balance}")
+            print(f"当前价格: ${current_price}")
         print(f"总交易次数: {len(self.trade_history)}")
-        
         # 显示数据库统计
         db_stats = self.db_manager.get_database_stats()
         print(f"\n📊 数据库统计:")
@@ -280,13 +300,11 @@ class LiveTrader:
         print(f"  交易信号记录: {db_stats.get('trading_signals_count', 0)}")
         print(f"  交易记录: {db_stats.get('trade_records_count', 0)}")
         print(f"  持仓记录: {db_stats.get('position_records_count', 0)}")
-        
         if self.trade_history:
             print("\n📋 交易记录:")
             for i, trade in enumerate(self.trade_history[-10:], 1):  # 显示最近10笔
                 print(f"  {i}. {trade['timestamp']} {trade['action']} "
                       f"{trade['quantity']:.6f} @ ${trade['price']:.2f}")
-        
         print("="*60)
 
 def main():
@@ -298,13 +316,36 @@ def main():
     symbol = 'ETH/USDT'
     strategy_func = Strategy.mean_reversion  # 可以切换策略
     initial_capital = 10000
-    test_mode = True  # 设置为False进行实盘交易
-    timeframe = '1m'  # 支持自定义K线周期，如'1m', '5m', '15m', '1h', '4h', '1d'
+    test_mode = False  # 设置为False进行实盘交易
+    timeframe = '5m'  # 支持自定义K线周期，如'1m', '5m', '15m', '1h', '4h', '1d'
     check_interval = 60  # 检查间隔（秒），建议与K线周期匹配
     
     # 实盘模式配置
     api_key = None
     api_secret = None
+    
+ 
+    
+    if not test_mode:
+        # 查询实盘USDT余额作为初始资金
+        account = BinanceAccount(api_key, api_secret)
+        usdt_balance = account.get_balance('USDT')
+        print(f"当前USDT余额: {usdt_balance}")
+        initial_capital = usdt_balance
+    # 创建实时交易器
+    live_trader = LiveTrader(
+        symbol=symbol,
+        strategy_func=strategy_func,
+        initial_capital=initial_capital,
+        test_mode=test_mode,
+        timeframe=timeframe,
+        api_key=api_key,
+        api_secret=api_secret
+    )
+    
+    # 显示初始账户状态
+    live_trader.trader.print_account_summary()
+    
     
     if not test_mode:
         print("⚠️  实盘模式警告：")
@@ -332,18 +373,6 @@ def main():
     if not test_mode:
         print(f"API密钥: {'已配置' if api_key else '未配置'}")
     print("="*50)
-    
-    # 创建实时交易器
-    live_trader = LiveTrader(
-        symbol=symbol,
-        strategy_func=strategy_func,
-        initial_capital=initial_capital,
-        test_mode=test_mode,
-        timeframe=timeframe
-    )
-    
-    # 显示初始账户状态
-    live_trader.trader.print_account_summary()
     
     # 开始交易
     try:
