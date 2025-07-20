@@ -140,6 +140,16 @@ class Backtester:
         buy_trades = [t for t in trades if 'BUY' in t['action']]
         sell_trades = [t for t in trades if 'SELL' in t['action']]
         
+        # 计算总手续费
+        total_commission = 0
+        for trade in trades:
+            if 'cost' in trade:  # 买入交易
+                commission_paid = trade['cost'] - (trade['shares'] * trade['price'])
+                total_commission += commission_paid
+            elif 'revenue' in trade:  # 卖出交易
+                commission_paid = (trade['shares'] * trade['price']) - trade['revenue']
+                total_commission += commission_paid
+        
         win_trades = [t for t in sell_trades if t.get('profit', 0) > 0]
         loss_trades = [t for t in sell_trades if t.get('profit', 0) <= 0]
         
@@ -162,7 +172,9 @@ class Backtester:
             'avg_win': avg_win,
             'avg_loss': avg_loss,
             'profit_factor': profit_factor,
-            'total_days': total_days
+            'total_days': total_days,
+            'total_commission': total_commission,
+            'commission_rate': total_commission / initial_capital if initial_capital > 0 else 0
         }
         
         return stats
@@ -188,6 +200,8 @@ class Backtester:
         print(f"平均亏损: ${stats['avg_loss']:.2f}")
         print(f"盈亏比: {stats['profit_factor']:.2f}")
         print(f"回测天数: {stats['total_days']}")
+        print(f"总手续费: ${stats['total_commission']:.2f}")
+        print(f"手续费率: {stats['commission_rate']:.2%}")
     
     def get_equity_curve(self) -> pd.DataFrame:
         """获取权益曲线"""

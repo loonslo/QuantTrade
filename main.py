@@ -30,7 +30,7 @@ if __name__ == '__main__':
 
 
     # 2. 策略信号
-    strategy_func = Strategy.ma_cross # 只需改这里即可切换策略
+    strategy_func = Strategy.kdj_signal # 只需改这里即可切换策略
     print("📈 生成交易信号...")
     # 为动量策略设置更合理的参数
     if strategy_func.__name__ == 'momentum':
@@ -61,7 +61,7 @@ if __name__ == '__main__':
     # 3. 回测
     print("📊 执行回测...")
     backtester = Backtester(strategy_func, position_manager=FixedRatioPositionManager())
-    backtester.run(df, initial_capital=100, commission=0.001)
+    backtester.run(df, initial_capital=100, commission=0.001)  # 0.1%手续费
     stats = backtester.stats()
     
     # 打印回测结果

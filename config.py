@@ -72,9 +72,9 @@ class SecureConfig:
         base_config = {
             'timeout': 10000,
             'enableRateLimit': True,
-            'options':{
-              'adjustForTimeDifference': True
-            },
+            # 'options':{
+            #   'adjustForTimeDifference': False
+            # },
             'proxies': {
                 'http': 'http://127.0.0.1:10311',
                 'https': 'http://127.0.0.1:10311',
