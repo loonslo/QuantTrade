@@ -25,14 +25,13 @@ class LiveTrader:
     
     def __init__(self, symbol: str = 'BTC/USDT', strategy_func=None, 
                  initial_capital: float = 10000, test_mode: bool = True, timeframe: str = '1m',
-                 api_key: str = None, api_secret: str = None):  # 新增api_key, api_secret
+                 binance_config: dict = None):  # 用binance_config替换api_key, api_secret
         self.symbol = symbol
         self.strategy_func = strategy_func
         self.initial_capital = initial_capital
         self.test_mode = test_mode
         self.timeframe = timeframe
-        self.api_key = api_key
-        self.api_secret = api_secret
+        self.binance_config = binance_config
         
         # 初始化组件
         self.data_loader = DataLoader()
@@ -41,7 +40,7 @@ class LiveTrader:
             self.account = None
         else:
             self.trader = None  # 不再用Trader
-            self.account = BinanceAccount(api_key, api_secret)
+            self.account = BinanceAccount(self.binance_config)
         self.position_manager = FixedRatioPositionManager()
         self.db_manager = DatabaseManager()
         
@@ -319,16 +318,25 @@ def main():
     test_mode = False  # 设置为False进行实盘交易
     timeframe = '5m'  # 支持自定义K线周期，如'1m', '5m', '15m', '1h', '4h', '1d'
     check_interval = 60  # 检查间隔（秒），建议与K线周期匹配
-    
+
     # 实盘模式配置
-    api_key = None
-    api_secret = None
-    
- 
-    
+    import os
+    api_key = os.getenv('BINANCE_API_KEY')
+    api_secret = os.getenv('BINANCE_SECRET')
+    binance_config = {
+        'apiKey': api_key,
+        'secret': api_secret,
+        'enableRateLimit': True,
+        'options': {'defaultType': 'spot'},
+    }
+
     if not test_mode:
+        if not api_key or not api_secret:
+            print("❌ 实盘模式需要配置API密钥")
+            print("请在环境变量中设置 BINANCE_API_KEY 和 BINANCE_SECRET")
+            return
         # 查询实盘USDT余额作为初始资金
-        account = BinanceAccount(api_key, api_secret)
+        account = BinanceAccount(binance_config)
         usdt_balance = account.get_balance('USDT')
         print(f"当前USDT余额: {usdt_balance}")
         initial_capital = usdt_balance
@@ -339,8 +347,7 @@ def main():
         initial_capital=initial_capital,
         test_mode=test_mode,
         timeframe=timeframe,
-        api_key=api_key,
-        api_secret=api_secret
+        binance_config=binance_config if not test_mode else None
     )
     
     # 显示初始账户状态
