@@ -3,17 +3,32 @@ import pandas as pd
 from config import Config
 
 class DataLoader:
-    def __init__(self, exchange=None, env='development'):
+    def __init__(self, exchange=None, env='development', config: dict = None):
         """
         初始化数据加载器
         :param exchange: 交易所对象，如果为None则自动创建
         :param env: 环境类型 ('development', 'test', 'production')
+        :param config: 直接传入ccxt配置dict，优先级最高
         """
-        if exchange is None:
-            config = Config(env=env)
-            self.exchange = ccxt.binance(config.get_public_config())
-        else:
+        self.env = env
+        self._user_config = config
+
+        if exchange is not None:
             self.exchange = exchange
+        else:
+            if config is not None:
+                ccxt_config = config
+            else:
+                ccxt_config = Config(env=env).get_public_config()
+            print("ccxt最终配置:", ccxt_config)  # 便于调试
+            self.exchange = ccxt.binance(ccxt_config)
+
+    def set_config(self, config: dict):
+        """
+        运行时切换ccxt配置
+        """
+        print("切换ccxt配置:", config)
+        self.exchange = ccxt.binance(config)
 
     def fetch_ohlcv(self, symbol: str, timeframe: str = '1h', limit: int = 500):
         """

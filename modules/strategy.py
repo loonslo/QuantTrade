@@ -1,6 +1,28 @@
 import pandas as pd
 
 class Strategy:
+    # 新增：策略英文名到中文名的映射
+    STRATEGY_NAME_CN = {
+        'ma_cross': '均线交叉',
+        'rsi_signal': 'RSI超买超卖',
+        'bollinger_breakout': '布林带突破',
+        'macd_cross': 'MACD金叉死叉',
+        'momentum': '动量策略',
+        'mean_reversion': '均值回归',
+        'breakout': '突破策略',
+        'turtle': '海龟法则',
+        'kdj_signal': 'KDJ策略',
+        'kama_cross': 'KAMA交叉',
+    }
+
+    @staticmethod
+    def get_strategy_name_cn(strategy_name: str) -> str:
+        """
+        获取策略的中文名
+        :param strategy_name: 英文名
+        :return: 中文名
+        """
+        return Strategy.STRATEGY_NAME_CN.get(strategy_name, strategy_name)
     
     
     @staticmethod
@@ -33,7 +55,7 @@ class Strategy:
         elif strategy_name == 'kama_cross':
             return Strategy._predict_kama_signals(df, **kwargs)
         else:
-            return {'next_buy': None, 'next_sell': None, 'message': f'策略 {strategy_name} 暂不支持预测'}
+            return {'next_buy': None, 'next_sell': None, 'message': f'策略 {Strategy.get_strategy_name_cn(strategy_name)} 暂不支持预测'}
 
     
     @staticmethod
