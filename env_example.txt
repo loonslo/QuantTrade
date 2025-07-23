@@ -10,8 +10,8 @@ BINANCE_SECRET=your_secret_here
 # BINANCE_TEST_SECRET=your_test_secret_here
 
 # 代理配置（可选）
-# HTTP_PROXY=http://127.0.0.1:7890
-# HTTPS_PROXY=http://127.0.0.1:7890
+# HTTP_PROXY=http://127.0.0.1:6823
+# HTTPS_PROXY=http://127.0.0.1:6823
 
 # 其他配置
 ENVIRONMENT=development  # development, test, production 

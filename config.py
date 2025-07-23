@@ -76,8 +76,8 @@ class SecureConfig:
             #   'adjustForTimeDifference': False
             # },
             'proxies': {
-                'http': 'http://127.0.0.1:4109',
-                'https': 'http://127.0.0.1:4109',
+                'http': 'http://127.0.0.1:6823',
+                'https': 'http://127.0.0.1:6823',
             }
         }
         
