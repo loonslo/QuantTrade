@@ -358,6 +358,44 @@ class DatabaseManager:
                   current_price, prediction_message))
             conn.commit()
     
+    def save_commission_summary(self, symbol: str, dataset_desc: str, strategy: str, position_manager: str,
+                           total_trades: int, total_commission: float, commission_rate: float,
+                           net_return: float, win_rate: float, summary_time=None):
+        """保存手续费汇总数据"""
+        if summary_time is None:
+            summary_time = datetime.now()
+        # 兼容pandas.Timestamp
+        if hasattr(summary_time, 'to_pydatetime'):
+            summary_time = summary_time.to_pydatetime()
+        elif isinstance(summary_time, str):
+            summary_time = datetime.fromisoformat(summary_time.replace('Z', '+00:00'))
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS commission_summary (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    symbol TEXT NOT NULL,
+                    dataset_desc TEXT NOT NULL,
+                    strategy TEXT NOT NULL,
+                    position_manager TEXT NOT NULL,
+                    total_trades INTEGER NOT NULL,
+                    total_commission REAL NOT NULL,
+                    commission_rate REAL NOT NULL,
+                    net_return REAL NOT NULL,
+                    win_rate REAL NOT NULL,
+                    summary_time DATETIME NOT NULL,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                )
+            ''')
+            cursor.execute('''
+                INSERT INTO commission_summary 
+                (symbol, dataset_desc, strategy, position_manager, total_trades, total_commission, commission_rate, net_return, win_rate, summary_time)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (
+                symbol, dataset_desc, strategy, position_manager, total_trades, total_commission, commission_rate, net_return, win_rate, summary_time
+            ))
+            conn.commit()
+    
     def get_market_data(self, symbol: str, start_time: datetime = None, 
                        end_time: datetime = None, timeframe: str = None, limit: int = None) -> pd.DataFrame:
         """获取市场数据"""
