@@ -20,19 +20,36 @@ SYMBOL = 'ERA/USDT'
 TIMEFRAME = '1m'
 LIMIT = 1000
 
-
-
 if __name__ == '__main__':
-    # 初始化数据库管理器
-    db_manager = DatabaseManager()
-    
-    # 1. 数据获取
-    data_loader = DataLoader()
-    ohlcv = data_loader.fetch_ohlcv(SYMBOL, TIMEFRAME, LIMIT)
-    df = data_loader.to_dataframe(ohlcv)
-    
-    # 保存市场数据到数据库
-    db_manager.save_market_data(df, SYMBOL, TIMEFRAME)
+    # 配置参数（建议放在文件顶部或配置文件中）
+    SYMBOL = 'BTC/USDT'
+    TIMEFRAME = '1h'
+    LIMIT = 500
+
+    # 1. 初始化数据加载器（会自动处理数据库连接）
+    data_loader = DataLoader(env='production')  # 使用生产环境配置
+
+    # 2. 智能获取数据（自动优先从数据库获取）
+    try:
+        print(f"正在获取{SYMBOL}的{TIMEFRAME}周期数据，数量{LIMIT}条...")
+        ohlcv = data_loader.fetch_ohlcv(SYMBOL, TIMEFRAME, LIMIT)
+        df = data_loader.to_dataframe(ohlcv)
+
+        # 3. 打印数据概览
+        print("\n获取到的数据概览:")
+        print(f"时间范围: {df.index[0]} 至 {df.index[-1]}")
+        print(f"数据条数: {len(df)}")
+        print(df.head(3))
+
+        # 4. 保存数据到数据库（已集成在fetch_ohlcv中，不需要单独保存）
+        # 除非需要强制更新，可以这样：
+        # from modules.database import DatabaseManager
+        # DatabaseManager().save_market_data(df, SYMBOL, TIMEFRAME)
+
+    except Exception as e:
+        print(f"数据获取失败: {str(e)}")
+
+
 
     # 2. 策略信号
     strategy_func = Strategy.mean_reversion # 只需改这里即可切换策略
