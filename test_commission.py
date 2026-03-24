@@ -1,11 +1,30 @@
 import pandas as pd
 import re
 import backtrader as bt
+import ccxt
 from modules.data import DataLoader
 from modules.strategy import Strategy
 from modules.position_manager import AllInPositionManager, FixedRatioPositionManager, PyramidAllPositionManager, TwoThreeFivePositionManager
 from modules.database import DatabaseManager
 from datetime import datetime
+
+
+def test_ccxt_connection():
+    """Test ccxt connection to Binance"""
+    exchange = ccxt.binance({
+        "proxies": {
+            "http": "http://127.0.0.1:6823",
+            "https": "http://127.0.0.1:6823"
+        },
+        "timeout": 10000,
+        "enableRateLimit": True
+    })
+    print("ccxt version:", ccxt.__version__)
+    print("exchange.urls:", exchange.urls)
+    print(exchange.fetch_ticker('BTC/USDT'))
+
+
+def test_strategy_commission_bt():
 
 def safe_sheet_name(name, max_length=31):
     name = re.sub(r'[:\\/?*\[\]]', '_', name)
