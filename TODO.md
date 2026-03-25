@@ -4,7 +4,7 @@
 
 ## 🔴 High Priority
 
-- [ ] Merge or clearly distinguish `live_trading.py` and `demo_trading.py`
+- [x] Merge or clearly distinguish `live_trading.py` and `demo_trading.py` — `demo_trading.py` 不存在（从未创建），`live_trading.py` 为当前唯一交易脚本，功能已明确 (2026-03-25)
 - [ ] Implement API key IP whitelist check on startup
 - [ ] Add comprehensive order fill tracking (partial fills)
 - [ ] Implement trading halt detection and safe shutdown
