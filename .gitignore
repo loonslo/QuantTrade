@@ -111,6 +111,10 @@ logs/
 # 数据文件
 *.csv
 *.json
+*.xlsx
+*.db
+*.sqlite
+*.sqlite3
 data/
 backup/
 
