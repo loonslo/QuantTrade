@@ -1,6 +1,7 @@
 import sqlite3
 import pandas as pd
 import json
+import contextlib
 from datetime import datetime, timedelta
 from typing import List, Dict, Optional, Tuple
 import logging
@@ -13,6 +14,28 @@ class DatabaseManager:
     def __init__(self, db_path: str = 'quanttrade.db'):
         self.db_path = db_path
         self.init_database()
+
+    @contextlib.contextmanager
+    def transaction(self):
+        """
+        事务上下文管理器，确保多步数据库操作原子性。
+        
+        用法:
+            with db.transaction() as conn:
+                cursor = conn.cursor()
+                cursor.execute(...)
+                cursor.execute(...)
+        
+        任意一步失败会自动回滚。
+        """
+        with contextlib.closing(sqlite3.connect(self.db_path)) as conn:
+            try:
+                yield conn
+                conn.commit()
+            except Exception:
+                conn.rollback()
+                logger.error("数据库事务回滚", exc_info=True)
+                raise
     
     def init_database(self):
         """初始化数据库，创建必要的表"""
@@ -182,27 +205,34 @@ class DatabaseManager:
             df_to_save = df_to_save.dropna()
             
             if not df_to_save.empty:
-                # 使用INSERT OR REPLACE来处理重复数据（同一币种同一时间戳）
-                cursor = conn.cursor()
-                for _, row in df_to_save.iterrows():
-                    # 转换时间戳类型
-                    timestamp = row['timestamp']
-                    if hasattr(timestamp, 'to_pydatetime'):
-                        timestamp = timestamp.to_pydatetime()
-                    elif isinstance(timestamp, str):
-                        timestamp = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
-                    
-                    cursor.execute('''
-                        INSERT OR REPLACE INTO market_data 
+                # 批量转换时间戳
+                def _normalize_timestamp(ts):
+                    if hasattr(ts, 'to_pydatetime'):
+                        return ts.to_pydatetime()
+                    elif isinstance(ts, str):
+                        return datetime.fromisoformat(ts.replace('Z', '+00:00'))
+                    return ts
+
+                records = [
+                    (
+                        row['symbol'],
+                        _normalize_timestamp(row['timestamp']),
+                        float(row['open']), float(row['high']),
+                        float(row['low']), float(row['close']),
+                        float(row['volume']), row['timeframe']
+                    )
+                    for _, row in df_to_save.iterrows()
+                ]
+
+                # 使用 executemany 批量插入，性能远优于逐行 execute
+                with conn.cursor() as cursor:
+                    cursor.executemany('''
+                        INSERT OR REPLACE INTO market_data
                         (symbol, timestamp, open, high, low, close, volume, timeframe)
                         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                    ''', (
-                        row['symbol'], timestamp, row['open'], row['high'],
-                        row['low'], row['close'], row['volume'], row['timeframe']
-                    ))
-                
+                    ''', records)
                 conn.commit()
-                logger.info(f"保存了 {len(df_to_save)} 条市场数据记录")
+                logger.info(f"批量保存了 {len(records)} 条市场数据记录")
             else:
                 logger.warning("没有有效的市场数据需要保存")
     
