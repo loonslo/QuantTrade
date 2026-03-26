@@ -1,3 +1,4 @@
+import os
 import time
 import pandas as pd
 from datetime import datetime, timedelta
@@ -25,13 +26,18 @@ class LiveTrader:
     
     def __init__(self, symbol: str = 'BTC/USDT', strategy_func=None, 
                  initial_capital: float = 10000, test_mode: bool = True, timeframe: str = '1m',
-                 binance_config: dict = None):  # 用binance_config替换api_key, api_secret
+                 binance_config: dict = None,
+                 stop_loss_pct: float = 0.02, take_profit_pct: float = 0.05):  # 止损2%，止盈5%
+        if strategy_func is not None and not callable(strategy_func):
+            raise ValueError("strategy_func must be callable")
         self.symbol = symbol
         self.strategy_func = strategy_func
         self.initial_capital = initial_capital
         self.test_mode = test_mode
         self.timeframe = timeframe
         self.binance_config = binance_config
+        self.stop_loss_pct = stop_loss_pct
+        self.take_profit_pct = take_profit_pct
         
         # 初始化组件
         self.data_loader = DataLoader()
@@ -48,6 +54,8 @@ class LiveTrader:
         self.last_signal = 0
         self.is_running = False
         self.trade_history = []
+        # 持仓信息：用于跟踪入场价和止损价
+        self.positions = {}  # {symbol: {'entry_price': float, 'shares': float, 'entry_time': datetime}}
         
         logger.info(f"实时交易器初始化完成 - 交易对: {symbol}, 测试模式: {test_mode}, K线周期: {timeframe}")
     
@@ -73,6 +81,20 @@ class LiveTrader:
         logger.info("交易已停止")
         self._print_final_summary()
     
+    def _check_stop_loss_take_profit(self, current_price: float):
+        """检查是否触发止损或止盈。返回 (stop_loss_triggered, take_profit_triggered)"""
+        pos = self.positions.get(self.symbol)
+        if not pos:
+            return False, False
+        entry_price = pos['entry_price']
+        stop_loss_price = entry_price * (1 - self.stop_loss_pct)
+        take_profit_price = entry_price * (1 + self.take_profit_pct)
+        if current_price <= stop_loss_price:
+            return True, False
+        if current_price >= take_profit_price:
+            return False, True
+        return False, False
+    
     def _check_and_execute_signals(self):
         """检查并执行交易信号"""
         try:
@@ -82,6 +104,21 @@ class LiveTrader:
             
             if df.empty:
                 logger.warning("获取数据失败，跳过本次检查")
+                return
+            
+            current_price = df['close'].iloc[-1]
+            
+            # 检查是否触发止损/止盈
+            sl_triggered, tp_triggered = self._check_stop_loss_take_profit(current_price)
+            if sl_triggered:
+                logger.warning(f"触发止损机制！当前价格: ${current_price:.2f}")
+                self._execute_sell_signal(current_price, df.index[-1], reason='stop_loss')
+                self.last_signal = -1  # 避免重复卖出
+                return
+            if tp_triggered:
+                logger.info(f"触发止盈机制！当前价格: ${current_price:.2f}")
+                self._execute_sell_signal(current_price, df.index[-1], reason='take_profit')
+                self.last_signal = -1
                 return
             
             # 保存市场数据到数据库
@@ -139,10 +176,13 @@ class LiveTrader:
         timestamp = df.index[-1]
         
         try:
+            signal_side = "买入" if signal == 1 else "卖出"
+            logger.warning(f"⚠️ 信号确认: {signal_side}信号 @ ${current_price:.2f}，确认执行...")
+            
             if signal == 1:  # 买入信号
                 self._execute_buy_signal(current_price, timestamp)
             elif signal == -1:  # 卖出信号
-                self._execute_sell_signal(current_price, timestamp)
+                self._execute_sell_signal(current_price, timestamp, reason=None)
                 
         except Exception as e:
             logger.error(f"执行信号时发生错误: {e}")
@@ -166,6 +206,12 @@ class LiveTrader:
                     )
                 else:
                     order = self.account.buy(self.symbol, shares)
+                # 记录持仓信息（用于止损追踪）
+                self.positions[self.symbol] = {
+                    'entry_price': price,
+                    'shares': shares,
+                    'entry_time': timestamp
+                }
                 # 保存交易记录到数据库
                 self.db_manager.save_trade_record(
                     getattr(order, 'id', None), self.symbol, 'buy', 'market',
@@ -189,7 +235,7 @@ class LiveTrader:
         except Exception as e:
             logger.error(f"执行买入信号失败: {e}")
     
-    def _execute_sell_signal(self, price: float, timestamp):
+    def _execute_sell_signal(self, price: float, timestamp, reason=None):
         """执行卖出信号"""
         try:
             if self.test_mode:
@@ -218,10 +264,14 @@ class LiveTrader:
                     'price': price,
                     'revenue': revenue,
                     'order_id': getattr(order, 'id', None),
-                    'status': getattr(order, 'status', 'executed')
+                    'status': getattr(order, 'status', 'executed'),
+                    'reason': reason or 'signal'
                 }
                 self.trade_history.append(trade_record)
-                logger.info(f"卖出信号执行成功: {shares} @ ${price:.2f}")
+                # 清除持仓记录
+                self.positions.pop(self.symbol, None)
+                reason_text = f"（{reason}）" if reason else ""
+                logger.info(f"卖出信号执行成功{reason_text}: {shares} @ ${price:.2f}")
             else:
                 logger.warning("卖出失败: 无持仓可卖")
         except Exception as e:
@@ -306,6 +356,15 @@ class LiveTrader:
                       f"{trade['quantity']:.6f} @ ${trade['price']:.2f}")
         print("="*60)
 
+def _validate_binance_config(api_key: str = None, api_secret: str = None):
+    """验证 Binance 配置是否完整"""
+    if not api_key or not api_secret:
+        print("❌ 实盘模式需要配置API密钥")
+        print("请在环境变量中设置 BINANCE_API_KEY 和 BINANCE_SECRET")
+        return False
+    return True
+
+
 def main():
     """主函数"""
     print("🚀 启动实时交易系统")
@@ -315,12 +374,13 @@ def main():
     symbol = 'ETH/USDT'
     strategy_func = Strategy.mean_reversion  # 可以切换策略
     initial_capital = 10000
-    test_mode = False  # 设置为False进行实盘交易
+    test_mode = True  # 设置为False进行实盘交易
     timeframe = '5m'  # 支持自定义K线周期，如'1m', '5m', '15m', '1h', '4h', '1d'
     check_interval = 60  # 检查间隔（秒），建议与K线周期匹配
+    stop_loss_pct = 0.02  # 止损比例（2%）
+    take_profit_pct = 0.05  # 止盈比例（5%）
 
     # 实盘模式配置
-    import os
     api_key = os.getenv('BINANCE_API_KEY')
     api_secret = os.getenv('BINANCE_SECRET')
     binance_config = {
@@ -331,15 +391,14 @@ def main():
     }
 
     if not test_mode:
-        if not api_key or not api_secret:
-            print("❌ 实盘模式需要配置API密钥")
-            print("请在环境变量中设置 BINANCE_API_KEY 和 BINANCE_SECRET")
+        if not _validate_binance_config(api_key, api_secret):
             return
         # 查询实盘USDT余额作为初始资金
         account = BinanceAccount(binance_config)
         usdt_balance = account.get_balance('USDT')
         print(f"当前USDT余额: {usdt_balance}")
         initial_capital = usdt_balance
+    
     # 创建实时交易器
     live_trader = LiveTrader(
         symbol=symbol,
@@ -347,12 +406,14 @@ def main():
         initial_capital=initial_capital,
         test_mode=test_mode,
         timeframe=timeframe,
-        binance_config=binance_config if not test_mode else None
+        binance_config=binance_config if not test_mode else None,
+        stop_loss_pct=stop_loss_pct,
+        take_profit_pct=take_profit_pct
     )
     
-    # 显示初始账户状态
-    live_trader.trader.print_account_summary()
-    
+    # 显示初始账户状态（仅测试模式）
+    if test_mode:
+        live_trader.trader.print_account_summary()
     
     if not test_mode:
         print("⚠️  实盘模式警告：")
@@ -360,16 +421,6 @@ def main():
         print("   - 请确保API密钥配置正确")
         print("   - 建议先用小资金测试")
         print()
-        
-        # 从环境变量或配置文件获取API密钥
-        import os
-        api_key = os.getenv('BINANCE_API_KEY')
-        api_secret = os.getenv('BINANCE_SECRET')
-        
-        if not api_key or not api_secret:
-            print("❌ 实盘模式需要配置API密钥")
-            print("请在环境变量中设置 BINANCE_API_KEY 和 BINANCE_SECRET")
-            return
     
     print(f"交易对: {symbol}")
     print(f"策略: {strategy_func.__name__}")
@@ -377,8 +428,8 @@ def main():
     print(f"模式: {'测试模式' if test_mode else '实盘模式'}")
     print(f"K线周期: {timeframe}")
     print(f"检查间隔: {check_interval}秒")
-    if not test_mode:
-        print(f"API密钥: {'已配置' if api_key else '未配置'}")
+    print(f"止损比例: {stop_loss_pct*100}%")
+    print(f"止盈比例: {take_profit_pct*100}%")
     print("="*50)
     
     # 开始交易
