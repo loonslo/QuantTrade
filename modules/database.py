@@ -3,10 +3,19 @@ import pandas as pd
 import json
 import contextlib
 from datetime import datetime, timedelta
-from typing import List, Dict, Optional, Tuple
+from typing import Dict
 import logging
 
 logger = logging.getLogger(__name__)
+
+
+def _normalize_timestamp(ts):
+    """统一时间戳转换，支持 pandas.Timestamp、字符串、datetime"""
+    if hasattr(ts, 'to_pydatetime'):
+        return ts.to_pydatetime()
+    elif isinstance(ts, str):
+        return datetime.fromisoformat(ts.replace('Z', '+00:00'))
+    return ts
 
 class DatabaseManager:
     """数据库管理器"""
@@ -164,7 +173,25 @@ class DatabaseManager:
                     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
                 )
             ''')
-            
+
+            # 8. 手续费汇总表
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS commission_summary (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    symbol TEXT NOT NULL,
+                    dataset_desc TEXT NOT NULL,
+                    strategy TEXT NOT NULL,
+                    position_manager TEXT NOT NULL,
+                    total_trades INTEGER NOT NULL,
+                    total_commission REAL NOT NULL,
+                    commission_rate REAL NOT NULL,
+                    net_return REAL NOT NULL,
+                    win_rate REAL NOT NULL,
+                    summary_time DATETIME NOT NULL,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                )
+            ''')
+
             # 创建索引以提高查询性能
             cursor.execute('CREATE INDEX IF NOT EXISTS idx_market_data_symbol_time ON market_data(symbol, timestamp)')
             cursor.execute('CREATE INDEX IF NOT EXISTS idx_signals_symbol_time ON trading_signals(symbol, timestamp)')
@@ -205,14 +232,6 @@ class DatabaseManager:
             df_to_save = df_to_save.dropna()
             
             if not df_to_save.empty:
-                # 批量转换时间戳
-                def _normalize_timestamp(ts):
-                    if hasattr(ts, 'to_pydatetime'):
-                        return ts.to_pydatetime()
-                    elif isinstance(ts, str):
-                        return datetime.fromisoformat(ts.replace('Z', '+00:00'))
-                    return ts
-
                 records = [
                     (
                         row['symbol'],
@@ -224,7 +243,6 @@ class DatabaseManager:
                     for _, row in df_to_save.iterrows()
                 ]
 
-                # 使用 executemany 批量插入，性能远优于逐行 execute
                 with conn.cursor() as cursor:
                     cursor.executemany('''
                         INSERT OR REPLACE INTO market_data
@@ -239,12 +257,8 @@ class DatabaseManager:
     def save_trading_signal(self, symbol: str, timestamp, signal: int, 
                            strategy_name: str, price: float, strategy_params: Dict = None):
         """保存交易信号"""
-        # 转换时间戳类型
-        if hasattr(timestamp, 'to_pydatetime'):
-            timestamp = timestamp.to_pydatetime()
-        elif isinstance(timestamp, str):
-            timestamp = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
-        
+        timestamp = _normalize_timestamp(timestamp)
+
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
             cursor.execute('''
@@ -267,12 +281,8 @@ class DatabaseManager:
                          status: str, timestamp, strategy_name: str = None,
                          signal_id: int = None):
         """保存交易记录"""
-        # 转换时间戳类型
-        if hasattr(timestamp, 'to_pydatetime'):
-            timestamp = timestamp.to_pydatetime()
-        elif isinstance(timestamp, str):
-            timestamp = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
-        
+        timestamp = _normalize_timestamp(timestamp)
+
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
             cursor.execute('''
@@ -291,12 +301,8 @@ class DatabaseManager:
                            unrealized_pnl: float, realized_pnl: float, total_commission: float,
                            timestamp):
         """保存持仓记录"""
-        # 转换时间戳类型
-        if hasattr(timestamp, 'to_pydatetime'):
-            timestamp = timestamp.to_pydatetime()
-        elif isinstance(timestamp, str):
-            timestamp = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
-        
+        timestamp = _normalize_timestamp(timestamp)
+
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
             cursor.execute('''
@@ -308,14 +314,10 @@ class DatabaseManager:
     
     def save_backtest_result(self, result: Dict):
         """保存回测结果"""
-        # 转换时间戳类型
         for time_key in ['start_time', 'end_time']:
             if time_key in result and result[time_key]:
-                if hasattr(result[time_key], 'to_pydatetime'):
-                    result[time_key] = result[time_key].to_pydatetime()
-                elif isinstance(result[time_key], str):
-                    result[time_key] = datetime.fromisoformat(result[time_key].replace('Z', '+00:00'))
-        
+                result[time_key] = _normalize_timestamp(result[time_key])
+
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
             cursor.execute('''
@@ -353,12 +355,8 @@ class DatabaseManager:
     
     def save_balance_record(self, currency: str, balance: float, timestamp):
         """保存余额记录"""
-        # 转换时间戳类型
-        if hasattr(timestamp, 'to_pydatetime'):
-            timestamp = timestamp.to_pydatetime()
-        elif isinstance(timestamp, str):
-            timestamp = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
-        
+        timestamp = _normalize_timestamp(timestamp)
+
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
             cursor.execute('''
@@ -372,11 +370,8 @@ class DatabaseManager:
                                current_price: float = None, prediction_message: str = None):
         """保存策略预测"""
         # 转换时间戳类型
-        if hasattr(timestamp, 'to_pydatetime'):
-            timestamp = timestamp.to_pydatetime()
-        elif isinstance(timestamp, str):
-            timestamp = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
-        
+        timestamp = _normalize_timestamp(timestamp)
+
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
             cursor.execute('''
@@ -394,29 +389,10 @@ class DatabaseManager:
         """保存手续费汇总数据"""
         if summary_time is None:
             summary_time = datetime.now()
-        # 兼容pandas.Timestamp
-        if hasattr(summary_time, 'to_pydatetime'):
-            summary_time = summary_time.to_pydatetime()
-        elif isinstance(summary_time, str):
-            summary_time = datetime.fromisoformat(summary_time.replace('Z', '+00:00'))
+        summary_time = _normalize_timestamp(summary_time)
+
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
-            cursor.execute('''
-                CREATE TABLE IF NOT EXISTS commission_summary (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    symbol TEXT NOT NULL,
-                    dataset_desc TEXT NOT NULL,
-                    strategy TEXT NOT NULL,
-                    position_manager TEXT NOT NULL,
-                    total_trades INTEGER NOT NULL,
-                    total_commission REAL NOT NULL,
-                    commission_rate REAL NOT NULL,
-                    net_return REAL NOT NULL,
-                    win_rate REAL NOT NULL,
-                    summary_time DATETIME NOT NULL,
-                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-                )
-            ''')
             cursor.execute('''
                 INSERT INTO commission_summary 
                 (symbol, dataset_desc, strategy, position_manager, total_trades, total_commission, commission_rate, net_return, win_rate, summary_time)
@@ -445,10 +421,9 @@ class DatabaseManager:
                 query += " AND timeframe = ?"
                 params.append(timeframe)
             
-            query += " ORDER BY timestamp DESC"
-            
             if limit:
-                query += f" LIMIT {limit}"
+                query += " LIMIT ?"
+                params.append(limit)
             
             df = pd.read_sql_query(query, conn, params=params)
             
