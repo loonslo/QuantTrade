@@ -1,44 +1,25 @@
-# QuantTrade TODO
+# QuantTrade tasks
 
-> Binance API-based BTC/ETH quantitative trading system.
+## Repository consolidation — 2026-10-25
 
-## 🔴 High Priority
+- [x] Preserve QuantTrade identity/history and import the reviewed Sys source snapshot.
+- [x] Combine dependencies/configuration and exclude runtime/credential files.
+- [x] Provide the shared offline API/CLI engine and canonical strategy class exports.
+- [x] Verify ten strategies, fill accounting, input failures, zero-trade behavior and adapter test doubles.
+- [x] Verify fresh SQLite initialization and repeated API startup without external jobs.
+- [x] Preserve original tools and identify historical/approximate behavior explicitly.
+- [x] Add publication/source guards, dependency lock and Windows/Linux CI configuration.
+- [ ] Publish the reviewed change to QuantTrade main and verify remote checks.
 
-- [x] Merge or clearly distinguish `live_trading.py` and `demo_trading.py` — `demo_trading.py` 不存在（从未创建），`live_trading.py` 为当前唯一交易脚本，功能已明确 (2026-03-25)
-- [ ] Implement API key IP whitelist check on startup
-- [ ] Add comprehensive order fill tracking (partial fills)
-- [ ] Implement trading halt detection and safe shutdown
-- [ ] Add database backup/restore mechanism
+## Follow-up acceptance
 
-## 🟡 Medium Priority
+- [ ] Verify every market-data/scheduler provider in an authorized network environment.
+- [ ] Review and validate advanced portfolio, optimization and optional LLM service paths.
+- [ ] Replace/verify the inherited KAMA and KDJ indicator approximations.
+- [ ] Consolidate the original Pandas/live compatibility path after behavioral comparison.
+- [ ] Implement durable order/fill reconciliation, partial-fill restart recovery and idempotency.
+- [ ] Apply consistent position/daily-loss risk controls to every live execution path.
+- [ ] Perform exchange-sandbox acceptance before considering any live-money run.
+- [ ] Modernize inherited Pydantic/SQLAlchemy deprecations and track Backtrader Python compatibility.
 
-- [ ] Migrate from SQLite to PostgreSQL for production deployment
-- [ ] Add more technical indicators (MACD, KDJ, ATR)
-- [ ] Machine learning-based strategy (predict price direction)
-- [ ] Advanced risk management (VaR, Kelly criterion)
-- [ ] Multi-exchange support (add OKX, Bybit)
-- [ ] Web UI dashboard for strategy management
-- [ ] Real-time WebSocket data feed (Binance streams)
-- [ ] Automated report generation (daily/weekly P&L email)
-
-## 🟢 Low Priority / Nice to Have
-
-- [ ] Strategy combination optimizer
-- [ ] Paper trading mode with full exchange simulation
-- [ ] Mobile push notifications for trade alerts
-- [ ] Docker containerization
-- [ ] Kubernetes deployment manifests
-
-## ✅ Completed
-
-- [x] Basic backtesting system (main.py) (2024)
-- [x] Real-time trading execution (live_trading.py) (2024)
-- [x] Binance API integration (ccxt) (2024)
-- [x] SQLite database (market_data, trading_signals, trade_records, backtest_results) (2024)
-- [x] Risk management (max position 10%, daily loss limit 5%) (2024)
-- [x] Visualization (K-line charts, equity curve, trade markers) (2024)
-- [x] Encrypted config storage (key_manager.py) (2024)
-- [x] API key environment variable support (ALPHA_VANTAGE_API_KEY) (2026-03-25)
-- [x] .gitignore: exclude *.xlsx, *.db, .env, __pycache__/ (2026-03-25)
-- [x] Unit tests: test_key_manager, test_secure_config, test_trading_config (653 lines) (2026-03-25)
-- [x] Commission analysis tool (test_commission.py) (2026-03-25)
+Original task lists are preserved with source attribution under `docs/consolidation/`; checked historical entries do not establish current acceptance.

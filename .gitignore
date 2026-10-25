@@ -110,15 +110,24 @@ logs/
 
 # 数据文件
 *.csv
-*.json
+!examples/*.csv
+config.json
+trading_config.json
+config/local.json
+config/secrets.json
 *.xlsx
 *.db
 *.sqlite
 *.sqlite3
-data/
+data/cache/
+data/market_data/
+runtime/
 backup/
 
 # 临时文件
 temp/
 tmp/
 *.tmp 
+.ruff_cache/
+.env.*
+!.env.example

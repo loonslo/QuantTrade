@@ -1,0 +1,17 @@
+{
+  "app": {
+    "debug": true
+  },
+  "server": {
+    "host": "127.0.0.1",
+    "reload": true
+  },
+  "database": {
+    "path": "quanthub_dev.db",
+    "enable_optimization": false
+  },
+  "logging": {
+    "level": "DEBUG",
+    "log_file": "logs/quanthub_dev.log"
+  }
+}

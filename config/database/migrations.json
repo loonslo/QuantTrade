@@ -1,0 +1,14 @@
+{
+  "migrations": {
+    "directory": "data/migrations",
+    "version_table": "alembic_version",
+    "auto_generate": true,
+    "compare_type": true,
+    "compare_server_default": true
+  },
+  "backup": {
+    "enabled": true,
+    "directory": "backups/database",
+    "retention_days": 30
+  }
+}

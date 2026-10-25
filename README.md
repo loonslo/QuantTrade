@@ -1,324 +1,88 @@
-# QuantTrade 量化交易系统
+# QuantTrade
 
-基于币安API的BTC/ETH量化分析系统，支持历史回测、实时信号提示、**实际交易执行**和**数据库管理**。
+以 QuantTradeSys 分层架构为基础的量化研究与行情服务项目，统一维护在 **loonslo/QuantTrade**。原 QuantTrade 的仓库地址、stars、issues 和公开提交历史保持连续。
 
-## 项目结构
+当前已验证：Python 3.14 安装、十种内置策略离线执行、命令行与 API 回测结果一致、SQLite 新库及重复启动、模拟交易和交易所接口替身测试。真实行情同步、第三方 LLM 与真实资金交易尚未验收。
 
-```
-QuantTrade/
-├── main.py              # 主程序入口
-├── live_trading.py      # 实时交易执行
-├── demo_trading.py      # 交易功能演示
-├── data_analysis.py     # 数据分析工具
-├── trading_config.py    # 交易配置管理
-├── test_commission.py   # 手续费分析
-├── config.py            # 配置文件管理
-├── key_manager.py       # 密钥管理工具
-├── env_example.txt      # 环境变量示例
-├── trading_config.json  # 交易配置文件
-├── quanttrade.db        # SQLite数据库
-├── modules/             # 功能模块
-│   ├── data.py         # 数据获取与处理
-│   ├── strategy.py     # 策略实现
-│   ├── backtest.py     # 回测框架
-│   ├── position_manager.py # 仓位管理
-│   ├── trader.py       # 实际交易执行
-│   ├── database.py     # 数据库管理
-│   ├── signal.py       # 信号推送
-│   └── plot.py         # 可视化
-├── charts/             # 图表输出目录
-├── backtest_results.xlsx # 回测结果记录
-└── README.md           # 项目说明
-```
-
-## 安装依赖
+## 快速开始
 
 ```bash
-# 安装所有依赖
-pip install -r requirements.txt
-
-# 或者单独安装核心依赖
-pip install ccxt pandas numpy matplotlib websockets cryptography openpyxl seaborn
+python -m venv .venv
+# Windows: .venv\Scripts\activate
+# macOS/Linux: source .venv/bin/activate
+python -m pip install -r requirements.lock
+python main.py backtest --csv examples/sample_ohlcv.csv --output tmp/backtest.json
+python main.py api
 ```
 
-## 配置说明
-
-### 1. 环境变量配置（推荐）
-
-复制 `env_example.txt` 为 `.env` 文件，并填入你的API密钥：
+浏览器打开 http://127.0.0.1:8000/docs；健康检查为 `/health`。也可使用：
 
 ```bash
-# 主网API密钥
-BINANCE_API_KEY=your_api_key_here
-BINANCE_SECRET=your_secret_here
-
-# 环境设置
-ENVIRONMENT=development  # development, test, production
+python run_server.py --port 8000
+python -m uvicorn api.app:create_app --factory --host 127.0.0.1 --port 8000
 ```
 
-### 2. 交易配置管理
+`examples/sample_ohlcv.csv` 是确定性合成数据，仅用于复现软件行为，不是历史行情或收益证明。离线回测不需要 API Key，也不会连接交易所。
 
-使用交互式配置工具设置交易参数：
+## 回测
 
 ```bash
-# 运行配置管理工具
-python trading_config.py
-
-# 或者直接编辑配置文件
-# trading_config.json
+python main.py backtest --csv examples/sample_ohlcv.csv --strategy ma_cross --params '{"short_window":5,"long_window":20}'
 ```
 
-### 3. 加密配置（更安全）
+PowerShell 对 JSON 参数的引号处理可能随版本变化；默认参数无需 `--params`。
+CSV 列为 `timestamp,open,high,low,close,volume`，时间必须递增且不重复，建议显式标注 UTC。无时区时间按 UTC 解释。
 
-使用密钥管理工具安全保存API密钥：
+- 策略唯一类实现位于 `strategies/bt_strategies/individual/`，注册入口为 `strategies/registry.py`。
+- 市价指令在下一根 K 线开盘成交；包含手续费及可选滑点。期末未平仓头寸按最后收盘价计入权益。
+- 默认 `fixed_ratio` 仓位，保留现金应对下一根价格变化。`all_in` 在向上跳空时可能因资金不足被 Backtrader 拒单。
+- 收益率、回撤与胜率使用小数；`profit_factor=null` 表示无亏损样本，不能给出有限比值。
+- 默认按连续交易的实际时间间隔计算年化因子；非连续交易市场请显式传入 `--periods-per-year`。
+- 兼容旧结果字段 `final_cash`，其含义是期末总权益；新代码优先读取 `final_equity`。
+
+`GET /api/backtests/strategies` 列出策略；`POST /api/backtests` 接收 OHLCV bars 和策略参数，调用同一个离线引擎。请求样例和字段约束见交互式 API 文档。
+
+## 模块
+
+| 目录/入口 | 职责 |
+| --- | --- |
+| `api/` | FastAPI、行情查询、数据同步及离线回测接口 |
+| `data/` | 数据提供器、SQLAlchemy 模型、存储与仓储 |
+| `services/` | 数据同步、策略服务、风控及可选 LLM 集成 |
+| `core/` | 回测执行、交易适配与组合接口 |
+| `strategies/`、`analytics/` | 策略定义、仓位管理与分析 |
+| `modules/`、`cli_backtest.py`、`live_trading.py` | 原 QuantTrade 兼容工具 |
+| `config/secure.py`、`key_manager.py` | 原密钥管理工具与测试 |
+| `tests/` | 默认运行的离线测试；外部交易所网络调用被禁止 |
+
+`cli_backtest.py` 保留原 `main.py` 的用法；其 Pandas 策略和旧回测器作为历史兼容实现保留，新研究优先使用统一入口。未将旧数据库中的历史回测改写成新引擎结果。
+
+## 配置与运行边界
+
+从 `.env.example` 创建本机 `.env`，密钥仅放在本机环境变量或加密存储中。`BINANCE_SECRET` 为统一变量名，兼容 `BINANCE_SECRET_KEY`。
+
+API 默认不启动外部行情调度。需要时显式执行 `python main.py api --scheduler`，或为应用工厂设置 `QUANTTRADE_ENABLE_SCHEDULER=1`。启动 API 不会启动交易策略或自动下单。
+
+`core.trading.BinanceTrader` 默认是本地模拟模式：市价单使用显式 `paper_prices`，限价单仅记录为待处理，尚不提供订单簿撮合。真实模式必须显式设置 `test_mode=False` 并提供本机凭据；交易所测试网由独立的 `sandbox` 控制。真实模式仅有替身测试，尚未完成真实环境验收。
+
+原 `live_trading.py` 保留兼容，不代表生产级交易闭环；部分成交恢复、持久化对账和完整风控仍在 [TODO.md](TODO.md)。KAMA 内置实现仍为原 Sys 的 SMA 近似，KDJ 使用 Stochastic 近似，不能视为已校验的标准指标实现。
+
+旧运行数据库、Excel 结果和 IDE 文件不再跟踪。Sys 数据库默认为本机 `quant_trading.db`，旧工具使用 `quanttrade.db`；没有自动合并或覆盖个人运行数据。
+
+## 开发与验收
 
 ```bash
-# 交互式保存API密钥（加密存储）
-python key_manager.py save
-
-# 验证API密钥
-python key_manager.py validate
-
-# 查看密钥状态
-python key_manager.py status
-
-# 清除保存的密钥
-python key_manager.py clear
+python -m pip install -r requirements.lock
+python -m pip check
+python scripts/check_source.py
+python scripts/check_publication.py
+python -m pytest -q
 ```
 
-### 4. 代理配置
+发布检查针对当前 Git 索引，不代替全历史凭据审计。历史代码曾包含嵌入式凭据样式字串，本次已移除；如对应真实密钥，应在服务端轮换。
 
-如果使用代理，在 `.env` 文件中设置：
+合并来源、取舍和范围见 [合并记录](docs/consolidation/MERGE_PLAN.md)，本次验证及未验证项见 [验收记录](docs/consolidation/ACCEPTANCE.md)。原 Sys 的其他文档按历史参考保留，不能作为本次复测证据。
 
-```bash
-HTTP_PROXY=http://127.0.0.1:7890
-HTTPS_PROXY=http://127.0.0.1:7890
-```
+## License
 
-## 使用方法
-
-### 1. 基础回测
-
-```python
-python main.py
-```
-
-### 2. 实时交易执行
-
-```python
-# 启动实时交易（测试模式）
-python live_trading.py
-
-# 或直接运行演示
-python demo_trading.py
-```
-
-### 3. 数据分析
-
-```python
-# 分析数据库中的交易数据
-python data_analysis.py
-
-# 分析各种策略的手续费成本
-python test_commission.py
-```
-
-### 4. 配置管理
-
-```python
-# 交互式配置交易参数
-python trading_config.py
-```
-
-### 5. 切换环境
-
-在代码中修改环境配置：
-
-```python
-from config import Config
-
-# 开发环境
-config = Config(env='development')
-
-# 测试网环境
-config = Config(env='test')
-
-# 生产环境
-config = Config(env='production')
-```
-
-## 功能特性
-
-### 🔄 回测系统
-- ✅ 多策略支持（均线交叉、RSI、布林带、MACD等）
-- ✅ 仓位管理（固定比例、金字塔加仓、倒金字塔减仓）
-- ✅ 手续费计算
-- ✅ 详细统计报告
-- ✅ Excel结果导出
-
-### 🚀 实际交易
-- ✅ **实时交易执行**（测试模式/实盘模式）
-- ✅ **订单管理**（市价单、限价单）
-- ✅ **风险管理**（仓位限制、日亏损限制）
-- ✅ **持仓跟踪**（实时盈亏计算）
-- ✅ **账户管理**（余额、持仓、交易历史）
-- ✅ **API余额查询**（实盘模式）
-
-### 📊 数据库管理
-- ✅ **SQLite数据库**（轻量、高效）
-- ✅ **市场数据存储**（K线、价格、成交量）
-- ✅ **交易信号记录**（策略、时间、价格）
-- ✅ **交易记录管理**（订单、成交、手续费）
-- ✅ **回测结果存储**（性能指标、参数）
-- ✅ **持仓跟踪**（实时盈亏、成本）
-- ✅ **数据分析工具**（查询、统计、可视化）
-
-### 📊 策略库
-- ✅ 趋势策略：均线交叉、MACD、动量
-- ✅ 震荡策略：RSI、KDJ、均值回归
-- ✅ 突破策略：布林带、海龟交易
-- ✅ 自适应策略：KAMA
-- ✅ **信号预测**（下一个买入/卖出触发价格）
-
-### 📈 可视化
-- ✅ K线图 + 交易信号
-- ✅ 权益曲线
-- ✅ 交易分析图表
-- ✅ 策略性能对比
-- ✅ 自动保存到charts目录
-
-### 🔐 安全特性
-- 🔐 环境变量优先级
-- 🔐 加密文件存储
-- 🔐 密钥验证机制
-- 🔐 交互式密钥管理
-- 🔐 测试模式保护
-- 🔐 配置验证
-
-## 数据库功能详解
-
-### 1. 数据库表结构
-
-```sql
--- 市场数据表
-market_data (symbol, timestamp, open, high, low, close, volume, timeframe)
-
--- 交易信号表
-trading_signals (symbol, timestamp, signal, strategy_name, price)
-
--- 交易记录表
-trade_records (order_id, symbol, side, quantity, price, commission, status)
-
--- 回测结果表
-backtest_results (strategy_name, symbol, total_return, sharpe_ratio, max_drawdown)
-
--- 持仓记录表
-position_records (symbol, quantity, avg_price, unrealized_pnl, realized_pnl)
-
--- 策略预测表
-strategy_predictions (strategy_name, symbol, next_buy_price, next_sell_price)
-```
-
-### 2. 数据分析功能
-
-```python
-# 策略性能分析
-analyzer.analyze_strategy_performance()
-
-# 交易信号分析
-analyzer.analyze_trading_signals('BTC/USDT', days=30)
-
-# 交易记录分析
-analyzer.analyze_trade_records(symbol='BTC/USDT', days=30)
-
-# 市场数据分析
-analyzer.analyze_market_data('BTC/USDT', days=7)
-
-# 最近活动查看
-analyzer.get_recent_activity(hours=24)
-```
-
-## 实盘交易模式
-
-### 1. 测试模式 vs 实盘模式
-
-```python
-# 测试模式（默认）
-test_mode = True
-# - 使用模拟余额
-# - 模拟价格数据
-# - 不执行真实交易
-# - 适合策略验证
-
-# 实盘模式
-test_mode = False
-# - 查询真实API余额
-# - 获取实时价格
-# - 执行真实交易
-# - 需要API密钥配置
-```
-
-### 2. 实盘模式配置
-
-```python
-# 1. 设置API密钥
-export BINANCE_API_KEY=your_api_key
-export BINANCE_SECRET=your_secret
-
-# 2. 配置交易参数
-python trading_config.py
-
-# 3. 启动实盘交易
-python live_trading.py
-```
-
-### 3. 风险管理
-
-```python
-# 自动风险控制
-- 最大仓位限制（默认10%）
-- 日亏损限制（默认5%）
-- 余额检查
-- 持仓检查
-- 最小交易金额限制
-```
-
-## 注意事项
-
-1. **API密钥安全**：
-   - 🔐 使用环境变量或加密存储，避免硬编码
-   - 🔐 定期更换API密钥
-   - 🔐 设置API密钥的IP白名单
-   - 🔐 仅授予必要的权限
-
-2. **实盘交易风险**：
-   - ⚠️ **强烈建议先在测试模式验证策略**
-   - ⚠️ 实盘交易前请充分测试
-   - ⚠️ 设置合理的风险控制参数
-   - ⚠️ 监控交易执行情况
-   - ⚠️ 定期备份数据库
-
-3. **数据库管理**：
-   - 📊 定期清理旧数据（默认30天）
-   - 📊 监控数据库大小
-   - 📊 定期备份重要数据
-   - 📊 使用索引优化查询性能
-
-4. **网络环境**：国内用户可能需要配置代理才能访问币安API
-
-5. **API限频**：注意币安API调用频率限制，避免被封禁
-
-6. **文件安全**：确保 `.env`、`.encrypted_config`、`.secret_key` 等敏感文件不被提交到版本控制系统
-
-## 开发计划
-
-- [ ] 更多技术指标
-- [ ] 机器学习策略
-- [ ] 高级风险管理
-- [ ] 多交易所支持
-- [ ] Web界面
-- [ ] 移动端推送
-- [ ] 策略组合优化
-- [ ] 实时WebSocket数据
-- [ ] 高级数据分析
-- [ ] 自动化报告生成 
+MIT，保留 QuantTradeSys 原许可与版权声明，见 [LICENSE](LICENSE)。

@@ -11,6 +11,17 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 
+@pytest.fixture(autouse=True)
+def no_exchange_network(monkeypatch):
+    """All exchange access in the test suite must use an explicit test double."""
+    import ccxt
+
+    def forbidden(*args, **kwargs):
+        raise AssertionError("Exchange network access is disabled in tests")
+
+    monkeypatch.setattr(ccxt.Exchange, 'fetch', forbidden)
+
+
 @pytest.fixture
 def temp_dir():
     """Create a temporary directory and change to it, cleanup after."""
@@ -26,7 +37,7 @@ def temp_dir():
 def clean_env():
     """Temporarily clear QuantTrade-related env vars."""
     env_keys = [
-        'BINANCE_API_KEY', 'BINANCE_SECRET',
+        'BINANCE_API_KEY', 'BINANCE_SECRET', 'BINANCE_SECRET_KEY',
         'ENV', 'APP_ENV', 'PROXY_PORT', 'PROXIES', 'SANDBOX',
     ]
     originals = {k: os.environ.pop(k, None) for k in env_keys}

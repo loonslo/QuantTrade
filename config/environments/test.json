@@ -1,0 +1,15 @@
+{
+  "app": {
+    "debug": true
+  },
+  "server": {
+    "port": 8001
+  },
+  "database": {
+    "path": ":memory:"
+  },
+  "logging": {
+    "level": "WARNING",
+    "console_output": false
+  }
+}

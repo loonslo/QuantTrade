@@ -1,0 +1,41 @@
+{
+  "strategy_name": "example_ma_strategy",
+  "strategy_type": "freqtrade",
+  "description": "示例移动平均策略 - 结合SMA和RSI指标",
+  "author": "BACKEND",
+  "version": "1.0.0",
+  "parameters": {
+    "sma_period": 20,
+    "ema_period": 20,
+    "rsi_period": 14,
+    "rsi_oversold": 30,
+    "rsi_overbought": 70,
+    "position_size": 0.1,
+    "enable_signal_logging": true
+  },
+  "backtest": {
+    "start_date": "2023-01-01",
+    "end_date": "2023-12-31",
+    "symbols": [
+      "BTC/USDT"
+    ],
+    "timeframe": "1h",
+    "initial_capital": 10000.0,
+    "commission": 0.001,
+    "data_source": "binance"
+  },
+  "live_trading": {
+    "enabled": false,
+    "exchange": "binance",
+    "symbols": [
+      "BTC/USDT"
+    ],
+    "timeframe": "1h",
+    "position_size": 0.1
+  },
+  "metadata": {
+    "version": "2.0.0",
+    "created_by": "config_consolidator",
+    "description": "Migrated from example_ma_strategy.json"
+  }
+}

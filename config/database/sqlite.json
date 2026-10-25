@@ -1,0 +1,17 @@
+{
+  "database": {
+    "type": "sqlite",
+    "path": "quanthub.db",
+    "echo": false,
+    "pool_pre_ping": true,
+    "connect_args": {
+      "check_same_thread": false
+    }
+  },
+  "connection_pool": {
+    "pool_size": 10,
+    "max_overflow": 20,
+    "pool_timeout": 30,
+    "pool_recycle": 3600
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "finnhub": {
+    "api_key": "${FINNHUB_API_KEY}",
+    "base_url": "https://finnhub.io/api/v1",
+    "timeout": 30,
+    "retry_attempts": 3,
+    "retry_delay": 1,
+    "rate_limit": {
+      "requests_per_second": 60
+    }
+  }
+}

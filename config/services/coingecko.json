@@ -1,0 +1,27 @@
+{
+  "coingecko": {
+    "api_key": "${COINGECKO_API_KEY}",
+    "base_url": "https://api.coingecko.com/api/v3",
+    "pro_url": "https://pro-api.coingecko.com/api/v3",
+    "use_pro": false,
+    "timeout": 30,
+    "retry_attempts": 3,
+    "retry_delay": 2
+  },
+  "rate_limits": {
+    "free_tier": {
+      "requests_per_minute": 30,
+      "requests_per_month": 10000
+    },
+    "pro_tier": {
+      "requests_per_minute": 500,
+      "requests_per_month": 1000000
+    }
+  },
+  "endpoints": {
+    "coins_list": "/coins/list",
+    "coin_details": "/coins/{id}",
+    "market_data": "/coins/markets",
+    "fear_greed": "/indexes/fear-and-greed"
+  }
+}

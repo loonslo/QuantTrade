@@ -24,8 +24,6 @@ def test_ccxt_connection():
     print(exchange.fetch_ticker('BTC/USDT'))
 
 
-def test_strategy_commission_bt():
-
 def safe_sheet_name(name, max_length=31):
     name = re.sub(r'[:\\/?*\[\]]', '_', name)
     return name[:max_length]

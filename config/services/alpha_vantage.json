@@ -1,0 +1,13 @@
+{
+  "alpha_vantage": {
+    "api_key": "${ALPHA_VANTAGE_API_KEY}",
+    "base_url": "https://www.alphavantage.co/query",
+    "timeout": 30,
+    "retry_attempts": 3,
+    "retry_delay": 1,
+    "rate_limit": {
+      "requests_per_minute": 5,
+      "requests_per_day": 25
+    }
+  }
+}

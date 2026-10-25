@@ -6,8 +6,9 @@ QuantTrade 配置包
 
 from config.secure import SecureConfig
 from config.trading import TradingConfig
+from config.core import ConfigManager
 
 # 向后兼容
 Config = SecureConfig
 
-__all__ = ['SecureConfig', 'TradingConfig', 'Config']
+__all__ = ['SecureConfig', 'TradingConfig', 'Config', 'ConfigManager']

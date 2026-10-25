@@ -1,0 +1,14 @@
+{
+  "yahoo_finance": {
+    "base_url": "https://query1.finance.yahoo.com",
+    "alt_base_url": "https://query2.finance.yahoo.com",
+    "use_proxy": true,
+    "proxy": "${HTTP_PROXY}",
+    "timeout": 30,
+    "retry_attempts": 3,
+    "retry_delay": 1,
+    "rate_limit": {
+      "requests_per_second": 10
+    }
+  }
+}
