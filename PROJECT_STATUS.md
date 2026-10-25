@@ -3,8 +3,8 @@ project_id: QuantTrade
 updated: 2026-10-25
 status: active
 overview: "以 QuantTradeSys 架构为基础，在 QuantTrade 维护统一的量化研究、行情服务与交易适配项目。"
-progress: "完成源码整合、共享回测入口和兼容修复；Windows Python 3.14 本地 97 项测试通过，发布检查通过，正在提交公开仓库。"
-next: "确认 QuantTrade 主分支发布和远端 CI；随后按授权验证真实行情同步与交易所测试环境。"
+progress: "已通过 PR #1 合并至 QuantTrade 公开 main，保留原仓库与 7 stars；本地及 GitHub Windows/Linux 均 97 项测试通过，发布检查通过。"
+next: "按后续授权验证真实行情同步、指标近似实现与交易所测试环境，完善订单恢复和实盘风控。"
 evidence:
   - docs/consolidation/MERGE_PLAN.md
   - docs/consolidation/ACCEPTANCE.md

@@ -38,8 +38,12 @@ The existing public repository and the reviewed Sys source were backed up before
 - Profitability, real historical performance, or suitability for real-money trading. The fixture is synthetic.
 - Production deployment, authentication boundaries for an externally exposed API, and migration of personal runtime databases.
 
-Windows/Linux CI is configured in `.github/workflows/ci.yml`. Its remote results and publication outcome are recorded below after the GitHub run; local validation alone does not establish Linux acceptance.
+Windows/Linux CI is configured in `.github/workflows/ci.yml`. Both remote jobs passed: each parsed 336 Python files, passed the publication guard and completed 97 tests (62 deprecation warnings). Ubuntu completed its tests in 10.22 seconds; Windows in 18.20 seconds. These results are from the reviewed source revision, not inferred from local validation.
 
 ## Publication
 
-Prepared for the existing public `loonslo/QuantTrade` repository using a reviewed source-snapshot commit on top of its existing history. Publication and remote CI verification are pending at this record's initial creation.
+Published to the existing public `loonslo/QuantTrade` main branch through [PR #1](https://github.com/loonslo/QuantTrade/pull/1), merged **2026-10-25 17:54:32 Asia/Shanghai**. Source revision: `ace017834e474b2189232aff42a502e74fee1948`; merge commit: `3f677fab4021069642a311b744b01bfd57e5a349`.
+
+The [PR validation run](https://github.com/loonslo/QuantTrade/actions/runs/40182383594) and source-branch push run both passed on Windows and Linux before merge. The first source commit has the original QuantTrade head as its sole parent, preserving the public history without importing private Sys ancestry. Repository visibility and default branch were verified as PUBLIC/main; its existing 7 stars remained present.
+
+This follow-up publication record updates documentation/status only; application code is unchanged from the validated revision. No production deployment or real trading acceptance is implied.

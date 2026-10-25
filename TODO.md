@@ -9,7 +9,7 @@
 - [x] Verify fresh SQLite initialization and repeated API startup without external jobs.
 - [x] Preserve original tools and identify historical/approximate behavior explicitly.
 - [x] Add publication/source guards, dependency lock and Windows/Linux CI configuration.
-- [ ] Publish the reviewed change to QuantTrade main and verify remote checks.
+- [x] Publish through PR #1 to QuantTrade main; Windows and Linux checks both passed (97 tests each).
 
 ## Follow-up acceptance
 
