@@ -1,0 +1,19 @@
+{
+  "server": {
+    "workers": 4
+  },
+  "database": {
+    "path": "quanthub_prod.db",
+    "max_workers": 8
+  },
+  "logging": {
+    "level": "INFO",
+    "console_output": false,
+    "log_file": "logs/quanthub_prod.log"
+  },
+  "cors": {
+    "allow_origins": [
+      "https://yourdomain.com"
+    ]
+  }
+}

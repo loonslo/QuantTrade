@@ -89,8 +89,8 @@ class TradingConfig:
     
     def get_api_credentials(self) -> tuple:
         """获取API凭证"""
-        api_key = self.config.get('api_key') or os.getenv('BINANCE_API_KEY')
-        api_secret = self.config.get('api_secret') or os.getenv('BINANCE_SECRET')
+        api_key = self.config.get('api_key') or os.getenv('BINANCE_API_KEY', '')
+        api_secret = self.config.get('api_secret') or os.getenv('BINANCE_SECRET', '')
         return api_key, api_secret
     
     def validate_config(self) -> bool:

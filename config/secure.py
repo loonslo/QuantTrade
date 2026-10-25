@@ -7,6 +7,7 @@
 import os
 import base64
 import json
+import ccxt
 from typing import Dict, Any, Optional
 from cryptography.fernet import Fernet
 from pathlib import Path
@@ -19,9 +20,9 @@ class SecureConfig:
 
     def __init__(self, env: str = None):
         self._ensure_env_file()      # 自动检查并生成 .env 文件
-        self._key_file = Path('.secret_key')
-        self._encrypted_file = Path('.encrypted_config')
-        self._config_file = Path('config.json')  # 主配置文件
+        self._key_file = Path('.secret_key').resolve()
+        self._encrypted_file = Path('.encrypted_config').resolve()
+        self._config_file = Path('config.json').resolve()  # 主配置文件
         self._ensure_config_file()   # 自动检查并生成 config.json 文件
 
         # 优先级: 参数 > 环境变量 > config.json > 默认
@@ -34,7 +35,7 @@ class SecureConfig:
 
         self.proxy_port = self._get_from_env_or_file('PROXY_PORT', default=6823, cast=int)
         self._api_key = self._get_from_env_or_file('BINANCE_API_KEY')
-        self._secret = self._get_from_env_or_file('BINANCE_SECRET')
+        self._secret = self._get_from_env_or_file('BINANCE_SECRET') or os.getenv('BINANCE_SECRET_KEY')
 
         self.config = self._load_config()
 
@@ -153,13 +154,7 @@ class SecureConfig:
         if encrypted_config and 'apiKey' in encrypted_config and 'secret' in encrypted_config:
             print("✅ 使用加密配置文件中的API密钥")
             return encrypted_config
-        # 3. 默认值（仅开发环境）
-        if self.env == 'development':
-            print("⚠️  使用默认API密钥（仅用于开发测试）")
-            return {
-                'apiKey': 'yBRGbWLRGxPfxTE4BxQO8LPzZ7GISRgrlhkJdNg95FIqjDf7Is0p3EHP6hZkUFQC',
-                'secret': 'fnocUgpR443EliLmjV3lTIgU0Sb3UNERprE2GZQJR8kK6gWzDKxWbyAWTt592TPl',
-            }
+        # Credentials must be supplied locally; no embedded development keys.
         return None
 
     def get_binance_config(self) -> Dict[str, Any]:
@@ -196,7 +191,6 @@ class SecureConfig:
 
     def validate_credentials(self) -> bool:
         try:
-            import ccxt
             config = self.get_binance_config()
             exchange = ccxt.binance(config)
             exchange.fetch_balance()

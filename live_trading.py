@@ -8,6 +8,7 @@ from modules.trader import Trader, OrderSide, OrderType
 from modules.position_manager import FixedRatioPositionManager
 from modules.database import DatabaseManager
 import logging
+from types import SimpleNamespace
 from modules.binance_account import BinanceAccount  # 新增
 
 # 设置日志
@@ -20,6 +21,15 @@ logging.basicConfig(
     ]
 )
 logger = logging.getLogger(__name__)
+
+def _order_value(order, name, default=None):
+    """Read both legacy Order objects and CCXT order dictionaries."""
+    if isinstance(order, dict):
+        if name == 'commission':
+            return (order.get('fee') or {}).get('cost', default)
+        return order.get(name, default)
+    return getattr(order, name, default)
+
 
 class LiveTrader:
     """实时交易执行器"""
@@ -150,13 +160,13 @@ class LiveTrader:
                 self.last_signal = current_signal
             
             # 保存账户余额记录
-            summary = self.trader.get_account_summary()
+            summary = self._account_summary(current_price)
             self.db_manager.save_balance_record('USDT', summary['usdt_balance'], current_time)
             
             # 保存持仓记录
             for symbol, position in summary['positions'].items():
                 if position.quantity > 0:
-                    current_price = self.trader.get_current_price(symbol)
+                    current_price = self.trader.get_current_price(symbol) if self.test_mode else current_price
                     unrealized_pnl = (current_price - position.avg_price) * position.quantity
                     self.db_manager.save_position_record(
                         symbol, position.quantity, position.avg_price,
@@ -214,9 +224,9 @@ class LiveTrader:
                 }
                 # 保存交易记录到数据库
                 self.db_manager.save_trade_record(
-                    getattr(order, 'id', None), self.symbol, 'buy', 'market',
-                    shares, price, cost, getattr(order, 'commission', 0),
-                    getattr(order, 'status', 'executed'), timestamp, self.strategy_func.__name__
+                    _order_value(order, 'id'), self.symbol, 'buy', 'market',
+                    shares, price, cost, _order_value(order, 'commission', 0),
+                    _order_value(order, 'status', 'unknown'), timestamp, self.strategy_func.__name__
                 )
                 # 记录交易
                 trade_record = {
@@ -225,8 +235,8 @@ class LiveTrader:
                     'quantity': shares,
                     'price': price,
                     'cost': cost,
-                    'order_id': getattr(order, 'id', None),
-                    'status': getattr(order, 'status', 'executed')
+                    'order_id': _order_value(order, 'id'),
+                    'status': _order_value(order, 'status', 'unknown')
                 }
                 self.trade_history.append(trade_record)
                 logger.info(f"买入信号执行成功: {shares} @ ${price:.2f}")
@@ -253,9 +263,9 @@ class LiveTrader:
                     order = self.account.sell(self.symbol, shares)
                 revenue = shares * price
                 self.db_manager.save_trade_record(
-                    getattr(order, 'id', None), self.symbol, 'sell', 'market',
-                    shares, price, revenue, getattr(order, 'commission', 0),
-                    getattr(order, 'status', 'executed'), timestamp, self.strategy_func.__name__
+                    _order_value(order, 'id'), self.symbol, 'sell', 'market',
+                    shares, price, revenue, _order_value(order, 'commission', 0),
+                    _order_value(order, 'status', 'unknown'), timestamp, self.strategy_func.__name__
                 )
                 trade_record = {
                     'timestamp': timestamp,
@@ -263,8 +273,8 @@ class LiveTrader:
                     'quantity': shares,
                     'price': price,
                     'revenue': revenue,
-                    'order_id': getattr(order, 'id', None),
-                    'status': getattr(order, 'status', 'executed'),
+                    'order_id': _order_value(order, 'id'),
+                    'status': _order_value(order, 'status', 'unknown'),
                     'reason': reason or 'signal'
                 }
                 self.trade_history.append(trade_record)
@@ -277,6 +287,22 @@ class LiveTrader:
         except Exception as e:
             logger.error(f"执行卖出信号失败: {e}")
     
+    def _account_summary(self, current_price):
+        if self.test_mode:
+            return self.trader.get_account_summary()
+        cash = self.account.get_balance('USDT')
+        quantity = self.account.get_balance(self.symbol.split('/')[0])
+        positions = {}
+        if quantity:
+            tracked = self.positions.get(self.symbol, {})
+            positions[self.symbol] = SimpleNamespace(
+                quantity=quantity, avg_price=tracked.get('entry_price', 0),
+                realized_pnl=0, total_commission=0,
+            )
+        return {'usdt_balance': cash, 'positions': positions,
+                'total_balance': cash + quantity * current_price,
+                'position_value': quantity * current_price, 'daily_pnl': 0}
+
     def _print_status(self, df: pd.DataFrame, current_signal: int):
         """打印当前状态"""
         current_price = df['close'].iloc[-1]

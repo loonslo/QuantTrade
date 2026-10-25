@@ -1,0 +1,29 @@
+{
+  "app": {
+    "name": "BACKEND",
+    "version": "2.0.0",
+    "description": "量化交易系统",
+    "debug": false
+  },
+  "server": {
+    "host": "0.0.0.0",
+    "port": 8000,
+    "workers": 1,
+    "reload": false
+  },
+  "database": {
+    "path": "quanthub.db",
+    "enable_optimization": true,
+    "max_workers": 4,
+    "connection_timeout": 30.0,
+    "slow_query_threshold": 1.0
+  },
+  "logging": {
+    "level": "INFO",
+    "console_output": true,
+    "log_file": null,
+    "max_file_size": "10MB",
+    "backup_count": 5,
+    "format": "structured"
+  }
+}

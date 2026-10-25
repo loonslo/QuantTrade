@@ -1,0 +1,23 @@
+{
+  "binance": {
+    "api_key": "${BINANCE_API_KEY}",
+    "secret_key": "${BINANCE_SECRET_KEY}",
+    "base_url": "https://api.binance.com",
+    "testnet_url": "https://testnet.binance.vision",
+    "use_testnet": false,
+    "timeout": 30,
+    "retry_attempts": 3,
+    "retry_delay": 1
+  },
+  "rate_limits": {
+    "requests_per_minute": 1200,
+    "orders_per_second": 10,
+    "orders_per_day": 200000
+  },
+  "websocket": {
+    "base_url": "wss://stream.binance.com:9443/ws/",
+    "testnet_url": "wss://testnet.binance.vision/ws/",
+    "ping_interval": 180,
+    "reconnect_attempts": 5
+  }
+}

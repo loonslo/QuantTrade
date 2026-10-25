@@ -20,12 +20,10 @@ class DataLoader:
             self.exchange = exchange
         else:
             ccxt_config = config if config else Config(env=env).get_public_config()
-            print(f"初始化ccxt配置:{ccxt_config}")  # 调试日志
             self.exchange = ccxt.binance(ccxt_config)
 
     def set_config(self, config: dict):
         """动态更新ccxt配置"""
-        print(f"更新ccxt配置:{config}")
         self.exchange = ccxt.binance(config)
 
     def fetch_ohlcv(self, symbol: str, timeframe: str = '1h', limit: int = 500) -> List[list]:

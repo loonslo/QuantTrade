@@ -1,0 +1,28 @@
+{
+  "cache": {
+    "type": "memory",
+    "default_ttl": 300,
+    "max_size": 1000,
+    "cleanup_interval": 600
+  },
+  "redis": {
+    "host": "localhost",
+    "port": 6379,
+    "db": 0,
+    "password": null,
+    "socket_timeout": 5,
+    "connection_pool_size": 10
+  },
+  "cache_keys": {
+    "market_data": "market_data:{symbol}:{timeframe}",
+    "coin_details": "coin_details:{coin_id}",
+    "fear_greed": "fear_greed:latest",
+    "strategy_results": "strategy:{strategy_id}:{params_hash}"
+  },
+  "ttl_settings": {
+    "market_data": 60,
+    "coin_details": 3600,
+    "fear_greed": 1800,
+    "strategy_results": 86400
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "metadata": {
+    "description": "环境配置模板 - 用于覆盖基础配置",
+    "environment": "template"
+  },
+  "app": {
+    "debug": false
+  },
+  "server": {
+    "host": "0.0.0.0",
+    "port": 8000,
+    "workers": 1,
+    "reload": false
+  },
+  "database": {
+    "path": "quanthub.db",
+    "enable_optimization": true
+  },
+  "logging": {
+    "level": "INFO",
+    "console_output": true,
+    "log_file": null
+  },
+  "cors": {
+    "allow_origins": ["*"]
+  },
+  "security": {
+    "secret_key": "${SECRET_KEY}"
+  }
+}

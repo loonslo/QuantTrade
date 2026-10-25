@@ -126,18 +126,20 @@ class TestSecureConfigEncryption:
     def test_different_keys_produce_different_ciphertext(self, temp_dir, clean_env):
         # Two different configs have different keys
         cfg1 = _make_secure_config(temp_dir)
+        encrypted = cfg1._encrypt_data('cross')
         key_file = Path('.secret_key')
         key1 = key_file.read_bytes()
 
         # Remove key so a new one is generated
         key_file.unlink()
         cfg2 = _make_secure_config(temp_dir)
+        cfg2._get_or_create_key()
         key2 = key_file.read_bytes()
 
         assert key1 != key2
         # And they can't decrypt each other's data
         with pytest.raises(Exception):  # Fernet decryption fails
-            cfg2._decrypt_data(cfg1._encrypt_data('cross'))
+            cfg2._decrypt_data(encrypted)
 
 
 # ------------------------------------------------------------------

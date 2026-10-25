@@ -1,0 +1,27 @@
+{
+  "symbols": [
+    "BTCUSDT",
+    "ETHUSDT",
+    "BNBUSDT",
+    "ADAUSDT",
+    "DOTUSDT",
+    "SOLUSDT",
+    "XRPUSDT"
+  ],
+  "fetch_interval_minutes": 5,
+  "data_retention_days": 30,
+  "summary_generation_interval_hours": 1,
+  "validate_data": true,
+  "max_oi_change_percent": 50,
+  "use_multi_exchange": true,
+  "exchange_priority": [
+    "binance",
+    "okx",
+    "bybit"
+  ],
+  "funding_settlement_times": [
+    0,
+    8,
+    16
+  ]
+}

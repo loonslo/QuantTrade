@@ -1,0 +1,87 @@
+{
+  "metadata": {
+    "version": "2.0.0",
+    "description": "基础配置模板",
+    "created_by": "BACKEND",
+    "last_updated": "2025-01-01"
+  },
+  "app": {
+    "name": "BACKEND",
+    "version": "2.0.0",
+    "description": "量化交易系统",
+    "debug": false
+  },
+  "server": {
+    "host": "0.0.0.0",
+    "port": 8000,
+    "workers": 1,
+    "reload": false,
+    "timeout": 60
+  },
+  "database": {
+    "type": "sqlite",
+    "path": "quanthub.db",
+    "enable_optimization": true,
+    "max_workers": 4,
+    "connection_timeout": 30.0,
+    "slow_query_threshold": 1.0
+  },
+  "api": {
+    "format_responses": true,
+    "enable_cors": true,
+    "request_timeout": 60.0,
+    "max_request_size": "10MB"
+  },
+  "cors": {
+    "allow_origins": ["*"],
+    "allow_credentials": true,
+    "allow_methods": ["*"],
+    "allow_headers": ["*"]
+  },
+  "logging": {
+    "level": "INFO",
+    "console_output": true,
+    "log_file": null,
+    "max_file_size": "10MB",
+    "backup_count": 5,
+    "format": "structured"
+  },
+  "security": {
+    "secret_key": "${SECRET_KEY}",
+    "algorithm": "HS256",
+    "access_token_expire_minutes": 30
+  },
+  "market_data": {
+    "max_limit": 1000,
+    "max_days_range": 365,
+    "max_batch_size": 50,
+    "max_concurrent_requests": 20,
+    "cache_ttl": 300
+  },
+  "validation": {
+    "timeframes": ["1m", "3m", "5m", "15m", "30m", "1h", "2h", "4h", "6h", "8h", "12h", "1d", "3d", "1w", "1M"],
+    "quote_assets": ["USDT", "BTC", "ETH", "BNB"],
+    "min_notional": 5.0
+  },
+  "pagination": {
+    "max_page_size": 100,
+    "default_page_size": 10
+  },
+  "external_apis": {
+    "binance": {
+      "base_url": "https://api.binance.com",
+      "timeout": 10.0,
+      "rate_limit": 1200
+    },
+    "coingecko": {
+      "base_url": "https://api.coingecko.com/api/v3",
+      "timeout": 10.0,
+      "rate_limit": 50
+    }
+  },
+  "monitoring": {
+    "enable_metrics": true,
+    "metrics_port": 9090,
+    "health_check_interval": 30
+  }
+}

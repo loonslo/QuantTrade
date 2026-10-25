@@ -1,0 +1,64 @@
+{
+  "backtest": {
+    "commission": 0.001,
+    "end_date": null,
+    "slippage": 0.0005,
+    "start_cash": 100000.0,
+    "start_date": null,
+    "timeframe": "1m"
+  },
+  "binance": {
+    "api_key": "",
+    "proxies": {},
+    "secret_key": "",
+    "testnet": true
+  },
+  "data_dir": "data",
+  "default_symbol": "BTC/USDT",
+  "logger": {
+    "backup_count": 5,
+    "file_path": null,
+    "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    "level": "INFO",
+    "max_bytes": 10485760
+  },
+  "min_notional": 5.0,
+  "position": {
+    "params": {
+      "base_ratio": 0.2,
+      "max_ratio": 0.25,
+      "multiplier": 2.0,
+      "ratio": 0.2,
+      "volatility_window": 20,
+      "win_loss_ratio": 2.0,
+      "win_rate": 0.5
+    },
+    "type": "all_in"
+  },
+  "proxies": {
+    "http": "http://127.0.0.1:11783",
+    "https": "http://127.0.0.1:11783"
+  },
+  "risk": {
+    "max_drawdown": 0.2,
+    "max_position_size": 0.1,
+    "max_trades_per_day": 10,
+    "max_trades_per_symbol": 5,
+    "min_interval_between_trades": 5,
+    "stop_loss": 0.05,
+    "take_profit": 0.1
+  },
+  "strategy": {
+    "name": "ma_cross",
+    "params": {
+      "long_window": 20,
+      "position_type": "all_in",
+      "short_window": 5
+    }
+  },
+  "metadata": {
+    "version": "2.0.0",
+    "created_by": "config_consolidator",
+    "description": "Migrated from default_strategy.json"
+  }
+}

@@ -1,0 +1,48 @@
+{
+  "type": "object",
+  "properties": {
+    "app": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        },
+        "debug": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "name",
+        "version"
+      ]
+    },
+    "server": {
+      "type": "object",
+      "properties": {
+        "host": {
+          "type": "string"
+        },
+        "port": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 65535
+        }
+      }
+    },
+    "database": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "string"
+        },
+        "connection_timeout": {
+          "type": "number",
+          "minimum": 0
+        }
+      }
+    }
+  }
+}

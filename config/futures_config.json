@@ -1,0 +1,10 @@
+{
+  "enabled_timeframes": ["1m", "3m", "5m", "15m", "1h"],
+  "update_frequency_minutes": 5,
+  "retry_attempts": 3,
+  "retry_delay_seconds": 2,
+  "data_validation": true,
+  "max_data_age_minutes": 10,
+  "recent_data_hours": 24,
+  "batch_size": 10
+}

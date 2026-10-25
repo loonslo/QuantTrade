@@ -124,7 +124,7 @@ class TestTradingConfigValidation:
         cfg.set('commission_rate', -0.01)
         assert cfg.validate_config() is False
 
-    def test_validate_fails_for_production_without_api_key(self, temp_dir):
+    def test_validate_fails_for_production_without_api_key(self, temp_dir, clean_env):
         cfg = TradingConfig(config_file=str(temp_dir / 'prod.json'))
         cfg.set('test_mode', False)
         cfg.set('api_key', '')

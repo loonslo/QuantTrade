@@ -13,12 +13,7 @@ import pytest
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 # Import the module to test (functions)
-import importlib.util
-spec = importlib.util.spec_from_file_location(
-    'key_manager', Path(__file__).parent.parent / 'key_manager.py'
-)
-key_manager = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(key_manager)
+import key_manager
 
 
 class TestSaveCredentialsInteractive:

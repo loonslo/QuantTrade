@@ -1,0 +1,30 @@
+{
+  "metadata": {
+    "description": "服务配置模板",
+    "service_name": "template_service"
+  },
+  "service_name": {
+    "enabled": true,
+    "api_key": "${SERVICE_API_KEY}",
+    "secret_key": "${SERVICE_SECRET_KEY}",
+    "base_url": "https://api.service.com",
+    "timeout": 30,
+    "retry_attempts": 3,
+    "retry_delay": 1
+  },
+  "rate_limits": {
+    "requests_per_minute": 1000,
+    "requests_per_second": 10
+  },
+  "websocket": {
+    "enabled": false,
+    "base_url": "wss://stream.service.com/ws/",
+    "ping_interval": 180,
+    "reconnect_attempts": 5
+  },
+  "cache": {
+    "enabled": true,
+    "ttl": 300,
+    "max_size": 1000
+  }
+}
